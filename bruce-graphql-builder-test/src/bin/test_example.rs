@@ -1,5 +1,5 @@
 use std::error::Error;
-// use sparko_graphql::{NewGraphQLQuery, NewGraphQLResponse, RequestManager};
+// use bruce_graphql::{NewGraphQLQuery, NewGraphQLResponse, RequestManager};
 
 
 include!(concat!(env!("OUT_DIR"), "/example.rs"));

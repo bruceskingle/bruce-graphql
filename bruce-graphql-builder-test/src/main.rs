@@ -2,7 +2,7 @@ use std::error::Error;
 
 use display_json::DisplayAsJsonPretty;
 use serde::{Deserialize, Serialize};
-use sparko_graphql::GraphQLResponse;
+use bruce_graphql::GraphQLResponse;
 
 #[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty)]
 struct Foo {}
@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 #[cfg(test)]
 mod tests {
-    use sparko_graphql::types::Currency;
+    use bruce_graphql::types::Currency;
 
     use super::example::example::get_example::get_luke::Response;
 

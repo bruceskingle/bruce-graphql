@@ -771,7 +771,7 @@ impl SelectionFieldType {
             println!("do_rust_type({:?}, nonnull={}", input, nonnull);
             match input {
                 SelectionFieldType::BuiltinType(builtin_type) => builtin_type.rust_type().to_string(),
-                SelectionFieldType::Currency => "sparko_graphql::types::Currency".to_string(),
+                SelectionFieldType::Currency => "bruce_graphql::types::Currency".to_string(),
                 SelectionFieldType::Scalar(name) => schema.defined_types.get(name).unwrap().rust_name().to_string(),
                 SelectionFieldType::Enum(name) => schema.defined_types.get(name).unwrap().rust_name().to_string(),
                 SelectionFieldType::Selection(id) => {
@@ -781,13 +781,13 @@ impl SelectionFieldType {
                 },
                 SelectionFieldType::Required(_) => unreachable!(),
                 SelectionFieldType::Array(wrapped) => format!("Vec<{}>", wrapped.rust_type(selection_manager, schema, nonnull, true)), // Force nonnull so we dobt generate Vec<Option<foo>>
-                SelectionFieldType::EdgeOf(wrapped) => format!("sparko_graphql::types::EdgeOf<{}>", wrapped.rust_type(selection_manager, schema, nonnull, false)),
-                SelectionFieldType::PageInfo => format!("sparko_graphql::types::PageInfo"),
-                SelectionFieldType::ForwardPageInfo => format!("sparko_graphql::types::ForwardPageInfo"),
-                SelectionFieldType::ReversePageInfo => format!("sparko_graphql::types::ReversePageInfo"),
-                SelectionFieldType::PageOf(wrapped) => format!("sparko_graphql::types::PageOf<{}>", wrapped.rust_type(selection_manager, schema, nonnull, true)),
-                SelectionFieldType::ForwardPageOf(wrapped) => format!("sparko_graphql::types::ForwardPageOf<{}>", wrapped.rust_type(selection_manager, schema, nonnull, true)),
-                SelectionFieldType::ReversePageOf(wrapped) => format!("sparko_graphql::types::ReversePageOf<{}>", wrapped.rust_type(selection_manager, schema, nonnull, true)),
+                SelectionFieldType::EdgeOf(wrapped) => format!("bruce_graphql::types::EdgeOf<{}>", wrapped.rust_type(selection_manager, schema, nonnull, false)),
+                SelectionFieldType::PageInfo => format!("bruce_graphql::types::PageInfo"),
+                SelectionFieldType::ForwardPageInfo => format!("bruce_graphql::types::ForwardPageInfo"),
+                SelectionFieldType::ReversePageInfo => format!("bruce_graphql::types::ReversePageInfo"),
+                SelectionFieldType::PageOf(wrapped) => format!("bruce_graphql::types::PageOf<{}>", wrapped.rust_type(selection_manager, schema, nonnull, true)),
+                SelectionFieldType::ForwardPageOf(wrapped) => format!("bruce_graphql::types::ForwardPageOf<{}>", wrapped.rust_type(selection_manager, schema, nonnull, true)),
+                SelectionFieldType::ReversePageOf(wrapped) => format!("bruce_graphql::types::ReversePageOf<{}>", wrapped.rust_type(selection_manager, schema, nonnull, true)),
             }
         }
 
@@ -878,7 +878,7 @@ impl SelectionField {
                 _ => false,
             };
             if is_list {
-                writeln!(out, "#[serde(default, deserialize_with = \"sparko_graphql::types::list_without_nulls\")]")?;
+                writeln!(out, "#[serde(default, deserialize_with = \"bruce_graphql::types::list_without_nulls\")]")?;
             }
 
             // if self.selection_type.is_array() {
@@ -1463,14 +1463,14 @@ fn generate_struct(out: &mut Output<'_>, name: &Name, rust_name: &Name, context:
                 writeln!(out, "}}")?;
                 writeln!(out, "")?;
             }
-            writeln!(out, "pub fn build(self) -> Result<{}, sparko_graphql::error::Error> {{", rust_name)?;
+            writeln!(out, "pub fn build(self) -> Result<{}, bruce_graphql::error::Error> {{", rust_name)?;
             {
                 let mut out = out.indent();
 
                 for field in context.fields().values() {
                     if let Type::Required(_) = field.ty {
                         writeln!(out, "if let None = self.{}_ {{", to_snake_case(&field.parsed.name))?;
-                        writeln!(out, "    return Err(sparko_graphql::error::Error::MissingRequiredValueError(\"{}\"))", field.parsed.name)?;
+                        writeln!(out, "    return Err(bruce_graphql::error::Error::MissingRequiredValueError(\"{}\"))", field.parsed.name)?;
                         writeln!(out, "}}")?;
                     }
                 }
@@ -2582,7 +2582,7 @@ impl GenericOperation {
             writeln!(out, r#"
 use display_json::DisplayAsJsonPretty;
 use serde::{{Deserialize, Serialize}};
-use sparko_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
+use bruce_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
 "#
             )?;
 
@@ -2684,14 +2684,14 @@ use sparko_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
                 //         writeln!(out, "}}")?;
                 //         writeln!(out, "")?;
                 //     }
-                //     writeln!(out, "pub fn build(self) -> Result<{}, sparko_graphql::error::Error> {{", rust_name)?;
+                //     writeln!(out, "pub fn build(self) -> Result<{}, bruce_graphql::error::Error> {{", rust_name)?;
                 //     {
                 //         let mut out = out.indent();
         
                 //         for field in self.variables.values() {
                 //             if let Type::Required(_) = field.ty {
                 //                 writeln!(out, "if let None = self.{}_ {{", to_snake_case(&field.parsed.name))?;
-                //                 writeln!(out, "    return Err(sparko_graphql::error::Error::MissingRequiredValueError(\"{}\"))", field.parsed.name)?;
+                //                 writeln!(out, "    return Err(bruce_graphql::error::Error::MissingRequiredValueError(\"{}\"))", field.parsed.name)?;
                 //                 writeln!(out, "}}")?;
                 //             }
                 //         }
@@ -2828,14 +2828,14 @@ use sparko_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
 
 
 
-                    writeln!(out, "fn build(self) -> Result<{}, sparko_graphql::error::Error> {{", self.parsed.operation)?;
+                    writeln!(out, "fn build(self) -> Result<{}, bruce_graphql::error::Error> {{", self.parsed.operation)?;
                     {
                         let mut out = out.indent();
         
                         for field in self.variables.values() {
                             if let Type::Required(_) = field.ty {
                                 writeln!(out, "if let None = self.{}_ {{", to_snake_case(&field.parsed.name))?;
-                                writeln!(out, "    return Err(sparko_graphql::error::Error::MissingRequiredValueError(\"{}\"))", field.parsed.name)?;
+                                writeln!(out, "    return Err(bruce_graphql::error::Error::MissingRequiredValueError(\"{}\"))", field.parsed.name)?;
                                 writeln!(out, "}}")?;
                             }
                         }

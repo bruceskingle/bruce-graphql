@@ -37,15 +37,15 @@ mod create_info {{
     println!("cargo::rerun-if-changed=build.rs");
     println!("cargo::rerun-if-changed=graphql_builder/src/lib.rs");
 
-    sparko_graphql_builder::builder("example")
+    bruce_graphql_builder::builder("example")
         .with_schema("graphql/example/schema.graphql")
         .with_query("graphql/example/get-luke.graphql", "get-example")
         .with_query("graphql/example/get-logged-in-user.graphql", "get-logged-in-user")
-        .with_query("../sparko_graphql_builder_test/graphql/example/get-meters.graphql", "meters")
+        .with_query("../bruce-graphql-builder-test/graphql/example/get-meters.graphql", "meters")
         .build()?;
 
 
-    sparko_graphql_builder::builder("swapi")
+    bruce_graphql_builder::builder("swapi")
         .with_schema("graphql/swapi/schema.graphql")
         .with_query("graphql/swapi/get-luke.graphql", "luke")
         .with_query("graphql/swapi/get-person.graphql", "person")
@@ -54,29 +54,29 @@ mod create_info {{
         .with_query("graphql/swapi/fragment.graphql", "fragment")
         .build()?;
 
-    sparko_graphql_builder::builder("rootpage")
+    bruce_graphql_builder::builder("rootpage")
         .with_schema("graphql/rootpage/schema.graphql")
         .with_query("graphql/rootpage/root-edge.graphql", "root-edge")
         .with_query("graphql/rootpage/root-page.graphql", "root-page")
         .with_query("graphql/rootpage/root-page-info.graphql", "root-page-info")
         .build()?;
 
-    sparko_graphql_builder::builder("octopus")
-        .with_type("Date", "sparko_graphql::types::Date")
-        .with_type("DateTime", "sparko_graphql::types::DateTime")
+    bruce_graphql_builder::builder("octopus")
+        .with_type("Date", "bruce_graphql::types::Date")
+        .with_type("DateTime", "bruce_graphql::types::DateTime")
         .with_schema("graphql/octopus/schema.graphql")
         .with_query("graphql/octopus/main.graphql", "main")
         .with_query("../../marco-sparko/graphql/octopus/bill.graphql", "bill")
         .with_query("../../marco-sparko/graphql/octopus/meter.graphql", "meter")
         .build()?;
 
-    // sparko_graphql_builder::builder("octopus")
-    //     .with_type("Date", "sparko_graphql::types::Date")
-    //     .with_type("DateTime", "sparko_graphql::types::DateTime")
+    // bruce_graphql_builder::builder("octopus")
+    //     .with_type("Date", "bruce_graphql::types::Date")
+    //     .with_type("DateTime", "bruce_graphql::types::DateTime")
     //     .with_type("Decimal", "crate::octopus::decimal::Decimal")
     //     .with_schema("../../marco-sparko/graphql/octopus/octopus-schema.graphql")
-    //     // .with_query("../sparko_graphql_builder_test/graphql/octopus/test.graphql", "yesy")
-    //     // .with_query("../sparko_graphql_builder_test/graphql/octopus/main.graphql", "main")
+    //     // .with_query("../bruce-graphql-builder-test/graphql/octopus/test.graphql", "yesy")
+    //     // .with_query("../bruce-graphql-builder-test/graphql/octopus/main.graphql", "main")
     //     .with_query("../../marco-sparko/graphql/octopus/bill.graphql", "bill")
     //     // .with_query("../../marco-sparko/graphql/octopus/meters.graphql", "meters")
     //     // .with_print(true)
