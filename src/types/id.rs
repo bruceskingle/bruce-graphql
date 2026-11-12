@@ -2,31 +2,30 @@ use std::fmt::{self, Display};
 use std::ops::Deref;
 use std::str::FromStr;
 
-use serde::{Deserializer, Serialize};
 use serde::de::{self, Visitor};
+use serde::{Deserializer, Serialize};
 
 use crate::Error;
-
 
 /// A GraphQL ID value
 #[derive(Serialize, Debug)]
 pub struct ID(String);
 
 impl ID {
-  pub fn new(s: String) -> ID {
-    ID(s)
-  }
+    pub fn new(s: String) -> ID {
+        ID(s)
+    }
 }
 
 impl From<String> for ID {
     fn from(value: String) -> Self {
-      ID(value)
+        ID(value)
     }
 }
 
 impl From<&str> for ID {
     fn from(value: &str) -> Self {
-      ID(String::from(value))
+        ID(String::from(value))
     }
 }
 
@@ -50,102 +49,100 @@ impl PartialOrd for ID {
     }
 }
 
-
 impl Display for ID {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-      self.0.fmt(f)
+        self.0.fmt(f)
     }
-  }
-  
-  impl FromStr for ID {
-      type Err = Error;
-  
-      fn from_str(str: &str) -> Result<ID, Self::Err> {
+}
+
+impl FromStr for ID {
+    type Err = Error;
+
+    fn from_str(str: &str) -> Result<ID, Self::Err> {
         Ok(ID(String::from(str)))
-      }
-  }
-  
-  
-  struct IDVisitor;
-  
-  impl<'de> Visitor<'de> for IDVisitor {
-      type Value = ID;
-  
-      fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-          formatter.write_str("a string value")
-      }
-  
-      fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-      where
-          E: de::Error,
-      {
-        match  ID::from_str(value) {
-          Ok(value) => Ok(value),
-          Err(error) => Err(E::custom(format!("Invalid ID value: {}", error)))
+    }
+}
+
+struct IDVisitor;
+
+impl<'de> Visitor<'de> for IDVisitor {
+    type Value = ID;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a string value")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        match ID::from_str(value) {
+            Ok(value) => Ok(value),
+            Err(error) => Err(E::custom(format!("Invalid ID value: {}", error))),
         }
-      }
-  }
-  
-  
-  impl<'de> serde::Deserialize<'de> for ID {
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ID {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-      deserializer.deserialize_string(IDVisitor)
-      }
-  }
-  
-  #[cfg(test)]
-  mod tests {
+        deserializer.deserialize_string(IDVisitor)
+    }
+}
+
+#[cfg(test)]
+mod tests {
     use display_json::DisplayAsJsonPretty;
     use serde::Deserialize;
 
     use super::*;
-  
-  
-      #[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty)]
-      struct MyStruct {
-          value: ID,
-      }
-  
-      #[test]
-      fn test_from_str() {
+
+    #[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty)]
+    struct MyStruct {
+        value: ID,
+    }
+
+    #[test]
+    fn test_from_str() {
         let expected = String::from("IdValue");
         let value = ID::from_str(&expected).unwrap();
-  
+
         assert_eq!(value.0, expected);
-      }
-  
-      fn expect_parse(s: &str, value: &str) {
+    }
+
+    fn expect_parse(s: &str, value: &str) {
         let expect = String::from(value);
         let result: Result<MyStruct, serde_json::Error> = serde_json::from_str(s);
         if let Ok(my_struct) = result {
-          assert_eq!(my_struct.value.0, expect);
+            assert_eq!(my_struct.value.0, expect);
+        } else {
+            panic!("Expecting {:?} for {}", expect, s);
         }
-        else {
-          panic!("Expecting {:?} for {}", expect, s);
-        }
-      }
-  
-      fn expect_parse_error(s: &str) {
+    }
+
+    fn expect_parse_error(s: &str) {
         let result: Result<MyStruct, serde_json::Error> = serde_json::from_str(s);
         if let Ok(_) = result {
-          panic!("Expecting error for {}", s);
+            panic!("Expecting error for {}", s);
         }
-      }
-  
-      #[test]
-      fn test_parse() {
-        
+    }
+
+    #[test]
+    fn test_parse() {
         expect_parse(r#"{ "value": "2024-04-05" }"#, "2024-04-05");
-        
+
         expect_parse_error(r#"{ "value": 123 }"#);
         expect_parse_error(r#"{ "value": [1,2,3]] }"#);
         expect_parse_error(r#"{ "value": {} }"#);
-      }
-  
-      #[test]
-      fn test_serialize() {
-        assert_eq!(serde_json::to_string(&MyStruct {
-          value: ID(String::from("King Richard the Third"))
-        }).unwrap(), "{\"value\":\"King Richard the Third\"}");
-      }
-  }
+    }
+
+    #[test]
+    fn test_serialize() {
+        assert_eq!(
+            serde_json::to_string(&MyStruct {
+                value: ID(String::from("King Richard the Third"))
+            })
+            .unwrap(),
+            "{\"value\":\"King Richard the Third\"}"
+        );
+    }
+}

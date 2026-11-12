@@ -1,22 +1,20 @@
 use std::sync::Arc;
 
-
 use display_json::DisplayAsJsonPretty;
 use reqwest::StatusCode;
 use serde::Serialize;
 
 use crate::redact::{redact_secrets, redacted_json};
-use crate::{Error, GraphQLCaller, GraphQLResponseStructure, GraphQLQuery, GraphQLResponse, ProgressMonitor};
+use crate::{Error, GraphQLCaller, GraphQLQuery, GraphQLResponse, GraphQLResponseStructure, ProgressMonitor};
 
 pub const DASHES: &str = "=======================================================================================================================";
 
 #[derive(Serialize, Debug, DisplayAsJsonPretty)]
 #[serde(rename_all = "camelCase")]
-struct NewRequest<'a>
-{
-    query:          &'a str,
-    variables:      String,
-    operation_name:  &'a str,
+struct NewRequest<'a> {
+    query: &'a str,
+    variables: String,
+    operation_name: &'a str,
 }
 
 // #[derive(Debug)]
@@ -27,7 +25,6 @@ pub struct RequestManager {
 }
 
 impl RequestManager {
-
     fn header(src: &str) -> Result<reqwest::header::HeaderValue, Error> {
         match reqwest::header::HeaderValue::from_str(src) {
             Ok(header) => Ok(header),
@@ -40,11 +37,7 @@ impl RequestManager {
             reqwest_client: reqwest::Client::builder()
                 .user_agent(user_agent)
                 .default_headers(
-                    std::iter::once((
-                        reqwest::header::CONTENT_TYPE,
-                        Self::header("application/json")?
-                    ))
-                    .collect(),
+                    std::iter::once((reqwest::header::CONTENT_TYPE, Self::header("application/json")?)).collect(),
                 )
                 .build()?,
             url,
@@ -53,14 +46,16 @@ impl RequestManager {
     }
 
     fn report_error(message: &str) {
-
         println!("\n\n\n{} {}", message, DASHES);
     }
 
     /// Called through GraphQLCaller::call3.
-    async fn execute<Q: GraphQLQuery<R>, R: GraphQLResponse, P: ProgressMonitor + ?Sized>(&self, query: &Q, token: Option<&Arc<String>>, progress: &P)
-    -> Result<R, Error> {
-
+    async fn execute<Q: GraphQLQuery<R>, R: GraphQLResponse, P: ProgressMonitor + ?Sized>(
+        &self,
+        query: &Q,
+        token: Option<&Arc<String>>,
+        progress: &P,
+    ) -> Result<R, Error> {
         // println!("NEW query {}", &query);
 
         let payload = NewRequest {
@@ -81,7 +76,6 @@ impl RequestManager {
         // println!("NEW payload {}", &serialized);
         // panic!("Don't send");
         // println!("NEW variables {}", params.get_variables()?);
-               
 
         let mut request = self.reqwest_client.post(&self.url.clone());
 
@@ -91,9 +85,7 @@ impl RequestManager {
 
         progress.progress(format!("Sending {} request", payload.operation_name));
 
-        let response = request
-            .body(serde_json::to_string(&payload).unwrap())
-            .send().await?;
+        let response = request.body(serde_json::to_string(&payload).unwrap()).send().await?;
 
         if &response.status() != &StatusCode::OK {
             let status = response.status();
@@ -101,17 +93,19 @@ impl RequestManager {
             if self.verbose {
                 Self::report_error("ERROR Request Failed");
                 println!("HTTP status {}", status);
-                
+
                 Self::report_error("Query");
                 println!("{}", &query.get_query());
-                
+
                 Self::report_error("Variables");
                 println!("{}", redacted_json(&payload.variables));
-                
-                Self::report_error("Payload");
-                let redacted_payload = NewRequest { variables: redacted_json(&payload.variables), ..payload };
-                println!("{}",  &serde_json::to_string(&redacted_payload).unwrap());
 
+                Self::report_error("Payload");
+                let redacted_payload = NewRequest {
+                    variables: redacted_json(&payload.variables),
+                    ..payload
+                };
+                println!("{}", &serde_json::to_string(&redacted_payload).unwrap());
             }
 
             // The body often explains the error, e.g. a CDN's page saying the request was blocked.
@@ -142,10 +136,7 @@ impl RequestManager {
 
         // println!("graphql_response {}", serde_json::to_string_pretty(&graphql_response)?);
 
-
-
         if let Some(errors) = graphql_response.errors {
-            
             if self.verbose {
                 Self::report_error("GraphQL Errors");
                 println!("{:?}", serde_json::to_string_pretty(&errors)?);
@@ -157,31 +148,32 @@ impl RequestManager {
         // if let Some(response) = graphql_response.data {
         //     println!("response {}", serde_json::to_string_pretty(&response)?);
 
-        
-            let json = graphql_response.data.clone();
-            let object: R = match serde_json::from_value(graphql_response.data) {
-                Ok(object) => object,
-                Err(error) => {
-                    // println!("Deserialization error {}", error);
-                    // println!("response_json {}", serde_json::to_string_pretty(&json)?);
-                    let error = Arc::new(error);
-                    return Err(Error::InvalidResponseError{json, error})
-                },
-            };
-            Ok(object)
+        let json = graphql_response.data.clone();
+        let object: R = match serde_json::from_value(graphql_response.data) {
+            Ok(object) => object,
+            Err(error) => {
+                // println!("Deserialization error {}", error);
+                // println!("response_json {}", serde_json::to_string_pretty(&json)?);
+                let error = Arc::new(error);
+                return Err(Error::InvalidResponseError { json, error });
+            }
+        };
+        Ok(object)
         // }
         // else {
         //     return Err(Box::new(Error::InternalError(format!("No response found"))))
         // }
-
-
     }
 }
 
 /// call is unauthenticated, wrap the RequestManager in an AuthenticatedRequestManager for authenticated calls.
 impl GraphQLCaller for RequestManager {
-    fn call3<Q: GraphQLQuery<R>, R: GraphQLResponse, P: ProgressMonitor + ?Sized>(&self, query: &Q, token: Option<&Arc<String>>, progress: &P)
-        -> impl std::future::Future<Output = Result<R, Error>> {
+    fn call3<Q: GraphQLQuery<R>, R: GraphQLResponse, P: ProgressMonitor + ?Sized>(
+        &self,
+        query: &Q,
+        token: Option<&Arc<String>>,
+        progress: &P,
+    ) -> impl std::future::Future<Output = Result<R, Error>> {
         self.execute(query, token, progress)
     }
 }

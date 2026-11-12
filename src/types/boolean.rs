@@ -2,25 +2,24 @@ use std::fmt::{self, Display};
 use std::ops::Deref;
 use std::str::FromStr;
 
-use serde::{Deserializer, Serialize};
 use serde::de::{self, Visitor};
+use serde::{Deserializer, Serialize};
 
 use crate::Error;
-
 
 /// A GraphQL Boolean value
 #[derive(Serialize, Debug, Default)]
 pub struct Boolean(bool);
 
 impl Boolean {
-  pub fn new(s: bool) -> Boolean {
-    Boolean(s)
-  }
+    pub fn new(s: bool) -> Boolean {
+        Boolean(s)
+    }
 }
 
 impl From<bool> for Boolean {
     fn from(value: bool) -> Self {
-      Boolean(value)
+        Boolean(value)
     }
 }
 
@@ -44,61 +43,57 @@ impl PartialOrd for Boolean {
     }
 }
 
-
 impl Display for Boolean {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-      self.0.fmt(f)
+        self.0.fmt(f)
     }
-  }
-  
-  impl FromStr for Boolean {
-      type Err = Error;
-  
-      fn from_str(str: &str) -> Result<Boolean, Self::Err> {
+}
+
+impl FromStr for Boolean {
+    type Err = Error;
+
+    fn from_str(str: &str) -> Result<Boolean, Self::Err> {
         Ok(Boolean(bool::from_str(str)?))
-      }
-  }
-  
-  
-  struct BooleanVisitor;
-  
-  impl<'de> Visitor<'de> for BooleanVisitor {
-      type Value = Boolean;
-  
-      fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-          formatter.write_str("a bool value")
-      }
-  
-      fn visit_bool<E>(self, value: bool) -> Result<Self::Value, E>
-      where
-          E: de::Error,
-      {
+    }
+}
+
+struct BooleanVisitor;
+
+impl<'de> Visitor<'de> for BooleanVisitor {
+    type Value = Boolean;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a bool value")
+    }
+
+    fn visit_bool<E>(self, value: bool) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
         Ok(Boolean(value))
-      }
-  }
-  
-  
-  impl<'de> serde::Deserialize<'de> for Boolean {
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Boolean {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-      deserializer.deserialize_bool(BooleanVisitor)
-      }
-  }
-  
-  #[cfg(test)]
-  mod tests {
-      use display_json::DisplayAsJsonPretty;
+        deserializer.deserialize_bool(BooleanVisitor)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use display_json::DisplayAsJsonPretty;
     use serde::Deserialize;
 
     use super::*;
-  
-  
-      #[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty)]
-      struct MyStruct {
-          value: Boolean,
-      }
-  
-      #[test]
-      fn test_from_str() {  
+
+    #[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty)]
+    struct MyStruct {
+        value: Boolean,
+    }
+
+    #[test]
+    fn test_from_str() {
         assert_eq!(Boolean::from_str("true").unwrap().0, true);
         assert_eq!(Boolean::from_str("false").unwrap().0, false);
 
@@ -106,47 +101,46 @@ impl Display for Boolean {
         expect_str_error("\"maybe\"");
         expect_str_error("2");
         expect_str_error("[true]");
-      }
+    }
 
-      fn expect_str_error(s: &str) {
+    fn expect_str_error(s: &str) {
         let result = Boolean::from_str(s);
         if let Ok(_) = result {
-          panic!("Expecting error for {}", s);
+            panic!("Expecting error for {}", s);
         }
-      }
-  
-      fn expect_parse(s: &str, expect: bool) {
+    }
+
+    fn expect_parse(s: &str, expect: bool) {
         let result: Result<MyStruct, serde_json::Error> = serde_json::from_str(s);
         if let Ok(my_struct) = result {
-          assert_eq!(my_struct.value.0, expect);
+            assert_eq!(my_struct.value.0, expect);
+        } else {
+            panic!("Expecting {:?} for {}", expect, s);
         }
-        else {
-          panic!("Expecting {:?} for {}", expect, s);
-        }
-      }
-  
-      fn expect_parse_error(s: &str) {
+    }
+
+    fn expect_parse_error(s: &str) {
         let result: Result<MyStruct, serde_json::Error> = serde_json::from_str(s);
         if let Ok(_) = result {
-          panic!("Expecting error for {}", s);
+            panic!("Expecting error for {}", s);
         }
-      }
-  
-      #[test]
-      fn test_parse() {
-        
+    }
+
+    #[test]
+    fn test_parse() {
         expect_parse(r#"{ "value": true }"#, true);
         expect_parse(r#"{ "value": false }"#, false);
-        
+
         expect_parse_error(r#"{ "value": 123 }"#);
         expect_parse_error(r#"{ "value": [1,2,3]] }"#);
         expect_parse_error(r#"{ "value": {} }"#);
-      }
-  
-      #[test]
-      fn test_serialize() {
-        assert_eq!(serde_json::to_string(&MyStruct {
-          value: Boolean(true)
-        }).unwrap(), "{\"value\":true}");
-      }
-  }
+    }
+
+    #[test]
+    fn test_serialize() {
+        assert_eq!(
+            serde_json::to_string(&MyStruct { value: Boolean(true) }).unwrap(),
+            "{\"value\":true}"
+        );
+    }
+}

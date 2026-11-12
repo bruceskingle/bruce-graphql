@@ -1,6 +1,6 @@
-use std::error::Error;
 use display_json::DisplayAsJsonPretty;
 use serde::{Deserialize, Serialize};
+use std::error::Error;
 
 #[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty)]
 struct Film {
@@ -23,10 +23,8 @@ impl Film {
             id: &self.id,
             title: &self.title,
         }
-
     }
 }
-
 
 fn main() -> Result<(), Box<dyn Error>> {
     let film = Film {
@@ -34,7 +32,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         title: "The Empire Strikes Back".to_string(),
         episode_id: 5,
         release_date: "1980-05-17".to_string(),
-        director: "Irvin Kershner".to_string()
+        director: "Irvin Kershner".to_string(),
     };
 
     println!("Film {}", serde_json::to_string_pretty(&film)?);

@@ -4,9 +4,9 @@ use std::str::FromStr;
 
 use time_tz::{OffsetDateTimeExt, Tz};
 
-use serde::{Deserializer, Serialize, Serializer};
 use serde::de::{self, Visitor};
 use serde::ser::Error as SerError;
+use serde::{Deserializer, Serialize, Serializer};
 use time::format_description;
 
 use crate::Error;
@@ -15,78 +15,71 @@ use super::Date;
 
 static FORMAT: format_description::well_known::Rfc3339 = format_description::well_known::Rfc3339;
 
-
 /// A GraphQL OffsetDateTime value
 #[derive(Debug, Clone, Copy)]
 pub struct DateTime(pub(crate) time::OffsetDateTime);
 
 impl DateTime {
-  pub fn now_utc() -> DateTime {
-    DateTime (time::OffsetDateTime::now_utc())
-  }
+    pub fn now_utc() -> DateTime {
+        DateTime(time::OffsetDateTime::now_utc())
+    }
 
-  pub fn now(tz: &Tz) -> DateTime {
-    DateTime (time::OffsetDateTime::now_utc().to_timezone(tz))
-  }
+    pub fn now(tz: &Tz) -> DateTime {
+        DateTime(time::OffsetDateTime::now_utc().to_timezone(tz))
+    }
 
-  pub fn to_date(&self) -> Date {
-    let (year, month, day) = self.0.to_calendar_date();
-    Date::from_calendar_date(year, month, day).unwrap()
-  }
+    pub fn to_date(&self) -> Date {
+        let (year, month, day) = self.0.to_calendar_date();
+        Date::from_calendar_date(year, month, day).unwrap()
+    }
 
-  pub fn from_unix_timestamp(timestamp: i64) -> Result<DateTime, Error> {
-      Ok(DateTime(time::OffsetDateTime::from_unix_timestamp(timestamp)?))
-  }
+    pub fn from_unix_timestamp(timestamp: i64) -> Result<DateTime, Error> {
+        Ok(DateTime(time::OffsetDateTime::from_unix_timestamp(timestamp)?))
+    }
 
-  pub fn from_unix_timestamp_nanos(timestamp: i128) -> Result<DateTime, Error> {
-    Ok(DateTime(time::OffsetDateTime::from_unix_timestamp_nanos(timestamp)?))
-  }
+    pub fn from_unix_timestamp_nanos(timestamp: i128) -> Result<DateTime, Error> {
+        Ok(DateTime(time::OffsetDateTime::from_unix_timestamp_nanos(timestamp)?))
+    }
 
-  pub fn from_calendar_date(year: i32, month: time::Month, day: u8) -> Result<DateTime, Error> {
-    Ok(DateTime(
-      time::OffsetDateTime::new_utc(
-        time::Date::from_calendar_date(year, month, day)?, 
-        time::Time::from_hms(0, 0, 0)?
-      )
-    ))
-  }
+    pub fn from_calendar_date(year: i32, month: time::Month, day: u8) -> Result<DateTime, Error> {
+        Ok(DateTime(time::OffsetDateTime::new_utc(
+            time::Date::from_calendar_date(year, month, day)?,
+            time::Time::from_hms(0, 0, 0)?,
+        )))
+    }
 
-  pub fn from_calendar_date_time(year: i32, month: time::Month, day: u8, hour: u8, minute: u8, second: u8) -> Result<DateTime, Error> {
-    Ok(DateTime(
-      time::OffsetDateTime::new_utc(
-        time::Date::from_calendar_date(year, month, day)?, 
-        time::Time::from_hms(hour, minute, second)?
-      )
-    ))
-  }
+    pub fn from_calendar_date_time(
+        year: i32,
+        month: time::Month,
+        day: u8,
+        hour: u8,
+        minute: u8,
+        second: u8,
+    ) -> Result<DateTime, Error> {
+        Ok(DateTime(time::OffsetDateTime::new_utc(
+            time::Date::from_calendar_date(year, month, day)?,
+            time::Time::from_hms(hour, minute, second)?,
+        )))
+    }
 
-  pub fn from_date_hms(date: time::Date, hour: u8, minute: u8, second: u8) -> Result<DateTime, Error> {
-    Ok(DateTime(
-      time::OffsetDateTime::new_utc(
-        date, 
-        time::Time::from_hms(hour, minute, second)?
-      )
-    ))
-  }
+    pub fn from_date_hms(date: time::Date, hour: u8, minute: u8, second: u8) -> Result<DateTime, Error> {
+        Ok(DateTime(time::OffsetDateTime::new_utc(
+            date,
+            time::Time::from_hms(hour, minute, second)?,
+        )))
+    }
 
-  pub fn from_date_and_time(date: time::Date, time: time::Time) -> DateTime {
-    DateTime(
-      time::OffsetDateTime::new_utc(
-        date, 
-        time
-      )
-    )
-  }
+    pub fn from_date_and_time(date: time::Date, time: time::Time) -> DateTime {
+        DateTime(time::OffsetDateTime::new_utc(date, time))
+    }
 
-  pub fn from_offset_date_time(date_time: time::OffsetDateTime) -> DateTime {
-    DateTime(date_time)
-  }
+    pub fn from_offset_date_time(date_time: time::OffsetDateTime) -> DateTime {
+        DateTime(date_time)
+    }
 
-  pub fn to_timezone(&self, tz: &time_tz::Tz) -> DateTime {
-    DateTime(
-      self.0.to_timezone(tz)
-    )
-  }
+    pub fn to_timezone(&self, tz: &time_tz::Tz) -> DateTime {
+        DateTime(self.0.to_timezone(tz))
+    }
 }
 
 impl Deref for DateTime {
@@ -109,8 +102,7 @@ impl PartialOrd for DateTime {
     }
 }
 
-impl Eq for DateTime {
-}
+impl Eq for DateTime {}
 
 impl Ord for DateTime {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
@@ -118,128 +110,126 @@ impl Ord for DateTime {
     }
 }
 
-
 impl Display for DateTime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-      match self.0.format(&FORMAT) {
-        Ok(s) => f.pad(&s),
-        Err(error) => Err(std::fmt::Error::custom(format!("Can't format OffsetDateTime: {}", error))),
-      }
-    }
-  }
-  
-  impl FromStr for DateTime {
-      type Err = Error;
-  
-      fn from_str(str: &str) -> Result<DateTime, Self::Err> {
-        Ok(DateTime(time::OffsetDateTime::parse(str, 
-          //&format_description::parse("[month]-[day]").unwrap()
-          &FORMAT
-      )?))
-      }
-  }
-  
-  
-  struct DateVisitor;
-  
-  impl<'de> Visitor<'de> for DateVisitor {
-      type Value = DateTime;
-  
-      fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-          formatter.write_str("a date value YYYY-MM-DD")
-      }
-  
-      fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-      where
-          E: de::Error,
-      {
-        match  DateTime::from_str(value) {
-          Ok(value) => Ok(value),
-          Err(error) => Err(E::custom(format!("Invalid OffsetDateTime value: {}", error)))
+        match self.0.format(&FORMAT) {
+            Ok(s) => f.pad(&s),
+            Err(error) => Err(std::fmt::Error::custom(format!(
+                "Can't format OffsetDateTime: {}",
+                error
+            ))),
         }
-      }
-  }
-  
-  impl<'de> serde::Deserialize<'de> for DateTime {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-      deserializer.deserialize_string(DateVisitor)
-      }
-  }
+    }
+}
 
-  impl Serialize for DateTime {
+impl FromStr for DateTime {
+    type Err = Error;
+
+    fn from_str(str: &str) -> Result<DateTime, Self::Err> {
+        Ok(DateTime(time::OffsetDateTime::parse(
+            str, //&format_description::parse("[month]-[day]").unwrap()
+            &FORMAT,
+        )?))
+    }
+}
+
+struct DateVisitor;
+
+impl<'de> Visitor<'de> for DateVisitor {
+    type Value = DateTime;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a date value YYYY-MM-DD")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        match DateTime::from_str(value) {
+            Ok(value) => Ok(value),
+            Err(error) => Err(E::custom(format!("Invalid OffsetDateTime value: {}", error))),
+        }
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for DateTime {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        deserializer.deserialize_string(DateVisitor)
+    }
+}
+
+impl Serialize for DateTime {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-          match self.0.format(&FORMAT) {
+        match self.0.format(&FORMAT) {
             Ok(s) => serializer.serialize_str(&s),
             Err(error) => Err(S::Error::custom(format!("Can't format OffsetDateTime: {}", error))),
-          }
-      }
+        }
     }
-  
-  
-  #[cfg(test)]
-  mod tests {
-      use display_json::DisplayAsJsonPretty;
+}
+
+#[cfg(test)]
+mod tests {
+    use display_json::DisplayAsJsonPretty;
     use serde::Deserialize;
 
     use super::*;
-  
-  
-      #[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty)]
-      struct MyStruct {
-          value: DateTime,
-      }
-  
-      #[test]
-      fn test_from_str() {
+
+    #[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty)]
+    struct MyStruct {
+        value: DateTime,
+    }
+
+    #[test]
+    fn test_from_str() {
         let expected = time::OffsetDateTime::from_unix_timestamp(0).unwrap();
         let value = DateTime::from_str("1970-01-01T00:00:00.0Z").unwrap();
-  
+
         assert_eq!(value.0, expected);
-      }
-  
-      #[test]
-      fn test_display() {
+    }
+
+    #[test]
+    fn test_display() {
         let date = DateTime::from_str("1944-06-06T00:06:00Z").unwrap();
         let value = format!("{}", date);
-  
+
         assert_eq!(value, "1944-06-06T00:06:00Z");
-      }
-  
-      fn expect_parse(s: &str, timestamp: i64) {
+    }
+
+    fn expect_parse(s: &str, timestamp: i64) {
         let expect = time::OffsetDateTime::from_unix_timestamp(timestamp).unwrap();
         let result: Result<MyStruct, serde_json::Error> = serde_json::from_str(s);
         if let Ok(my_struct) = result {
-          assert_eq!(my_struct.value.0, expect);
+            assert_eq!(my_struct.value.0, expect);
+        } else {
+            panic!("Expecting {:?} for {}", expect, s);
         }
-        else {
-          panic!("Expecting {:?} for {}", expect, s);
-        }
-      }
-  
-      fn expect_parse_error(s: &str) {
+    }
+
+    fn expect_parse_error(s: &str) {
         let result: Result<MyStruct, serde_json::Error> = serde_json::from_str(s);
         if let Ok(_) = result {
-          panic!("Expecting error for {}", s);
+            panic!("Expecting error for {}", s);
         }
-      }
-  
-      #[test]
-      fn test_parse() {
-        
+    }
+
+    #[test]
+    fn test_parse() {
         expect_parse(r#"{ "value": "1944-06-06T00:06:00Z" }"#, -806975640);
-        
+
         expect_parse_error(r#"{ "value": "444." }"#);
         expect_parse_error(r#"{ "value": "1/2/2022" }"#);
-      }
-  
-      #[test]
-      fn test_serialize() {
+    }
+
+    #[test]
+    fn test_serialize() {
         let value = DateTime::from_unix_timestamp(-806975640).unwrap();
-        assert_eq!(serde_json::to_string(&MyStruct {
-          value
-        }).unwrap(), "{\"value\":\"1944-06-06T00:06:00Z\"}");
-      }
-  }
+        assert_eq!(
+            serde_json::to_string(&MyStruct { value }).unwrap(),
+            "{\"value\":\"1944-06-06T00:06:00Z\"}"
+        );
+    }
+}

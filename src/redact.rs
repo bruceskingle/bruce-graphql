@@ -8,7 +8,8 @@ const SECRET_NAMES: [&str; 5] = ["password", "token", "secret", "apikey", "presi
 
 /// Whether a field or argument with this name holds a secret, e.g. password, apiKey, api_key, refreshToken.
 pub fn is_secret_name(name: &str) -> bool {
-    let name: String = name.chars()
+    let name: String = name
+        .chars()
         .filter(|c| c.is_alphanumeric())
         .flat_map(char::to_lowercase)
         .collect();
@@ -24,14 +25,13 @@ pub fn redact_secrets(value: &mut serde_json::Value) {
                     if !field.is_null() {
                         *field = serde_json::Value::String(String::from(REDACTED));
                     }
-                }
-                else {
+                } else {
                     redact_secrets(field);
                 }
             }
-        },
+        }
         serde_json::Value::Array(items) => items.iter_mut().for_each(redact_secrets),
-        _ => {},
+        _ => {}
     }
 }
 
@@ -42,7 +42,7 @@ pub fn redacted_json(json: &str) -> String {
         Ok(mut value) => {
             redact_secrets(&mut value);
             serde_json::to_string_pretty(&value).unwrap_or_else(|_| String::from(REDACTED))
-        },
+        }
         Err(_) => String::from(REDACTED),
     }
 }
@@ -53,7 +53,16 @@ mod tests {
 
     #[test]
     fn secret_names_are_found_in_any_case_or_style() {
-        for name in ["password", "APIKey", "api_key", "octopus-api-key", "refreshToken", "token", "organizationSecretKey", "preSignedKey"] {
+        for name in [
+            "password",
+            "APIKey",
+            "api_key",
+            "octopus-api-key",
+            "refreshToken",
+            "token",
+            "organizationSecretKey",
+            "preSignedKey",
+        ] {
             assert!(is_secret_name(name), "{name}");
         }
         for name in ["email", "accountNumber", "refreshExpiresIn", "endCursor", "hashKey"] {
@@ -68,10 +77,13 @@ mod tests {
             "list": [{"token": "t"}],
         });
         redact_secrets(&mut value);
-        assert_eq!(value, serde_json::json!({
-            "input": {"email": "a@b.c", "password": REDACTED, "APIKey": null},
-            "list": [{"token": REDACTED}],
-        }));
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "input": {"email": "a@b.c", "password": REDACTED, "APIKey": null},
+                "list": [{"token": REDACTED}],
+            })
+        );
     }
 
     #[test]

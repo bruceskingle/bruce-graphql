@@ -4,23 +4,16 @@ use display_json::DisplayAsJsonPretty;
 use serde::{Deserialize, Serialize};
 
 pub struct ParamBuffer {
-    buf: String
+    buf: String,
 }
 
 impl ParamBuffer {
     pub fn new() -> ParamBuffer {
-        ParamBuffer {
-            buf: String::new()
-        }
+        ParamBuffer { buf: String::new() }
     }
 
     pub fn push(&mut self, s: &str) {
-        self.buf.push_str(if self.buf.len() == 0 {
-            "("
-        }
-        else {
-            ", "
-        });
+        self.buf.push_str(if self.buf.len() == 0 { "(" } else { ", " });
 
         self.buf.push_str(s);
     }
@@ -54,25 +47,24 @@ impl GraphQL {
     pub fn prefix(a: &str, b: &str) -> String {
         if b.len() == 0 {
             a.to_string()
-        }
-        else {
+        } else {
             if a.len() == 0 {
                 format!("{}_", b)
-            }
-            else {
+            } else {
                 format!("{}{}_", a, b)
             }
         }
     }
 }
 
-
-
 pub trait GraphQLQueryParams {
     fn get_formal_part(&self, params: &mut ParamBuffer, prefix: &str);
     fn get_actual_part(&self, params: &mut ParamBuffer, prefix: &str);
-    fn get_variables_part(&self, variables: &mut serde_json::Map<String, serde_json::Value>, prefix: &str) -> Result<(), serde_json::Error>;
-
+    fn get_variables_part(
+        &self,
+        variables: &mut serde_json::Map<String, serde_json::Value>,
+        prefix: &str,
+    ) -> Result<(), serde_json::Error>;
 
     fn get_formal(&self) -> String {
         let mut params = ParamBuffer::new();
@@ -92,12 +84,12 @@ pub trait GraphQLQueryParams {
         serde_json::to_string_pretty(&self.get_variable_map()?)
     }
 
-    fn get_variable_map(&self) -> Result<serde_json::Map<String, serde_json::Value>, serde_json::Error>  {
+    fn get_variable_map(&self) -> Result<serde_json::Map<String, serde_json::Value>, serde_json::Error> {
         let mut variables: serde_json::Map<String, serde_json::Value> = serde_json::Map::new();
         self.get_variables_part(&mut variables, "")?;
 
         Ok(variables)
-    }    
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty)]
@@ -105,42 +97,48 @@ pub trait GraphQLQueryParams {
 pub struct NoParams;
 
 impl GraphQLQueryParams for NoParams {
-    fn get_formal_part(&self, _params: &mut ParamBuffer, _prefix: &str) {
-    }
+    fn get_formal_part(&self, _params: &mut ParamBuffer, _prefix: &str) {}
 
-    fn get_actual_part(&self, _params: &mut ParamBuffer, _prefix: &str) {
-    }
+    fn get_actual_part(&self, _params: &mut ParamBuffer, _prefix: &str) {}
 
-    fn get_variables_part(&self, _variables: &mut serde_json::Map<String, serde_json::Value>, _prefix: &str) -> Result<(), serde_json::Error> {
+    fn get_variables_part(
+        &self,
+        _variables: &mut serde_json::Map<String, serde_json::Value>,
+        _prefix: &str,
+    ) -> Result<(), serde_json::Error> {
         Ok(())
     }
 }
 
-
 pub trait GraphQLType<Q: GraphQLQueryParams> {
     fn get_query_part(params: &Q, prefix: &str) -> String {
-        format!("{{ #get_query_part\n  {}\n}} #/get_query_part\n", Self::get_query_attributes(params, prefix))
+        format!(
+            "{{ #get_query_part\n  {}\n}} #/get_query_part\n",
+            Self::get_query_attributes(params, prefix)
+        )
     }
 
     fn get_query_attributes(params: &Q, prefix: &str) -> String;
 }
 
-
 pub trait TokenManager {
     /*
-    use of `async fn` in public traits is discouraged as auto trait bounds cannot be specified
-   --> src/lib.rs:547:5
-    |
-547 |     async fn get_authenticator(&mut self) -> Result<Arc<String>, Box<dyn StdError>>;
-    |     ^^^^^
-    |
-    = note: you can suppress this lint if you plan to use the trait only in your own code, or do not care about auto traits like `Send` on the `Future`
-    = note: `#[warn(async_fn_in_trait)]` on by default
-help: you can alternatively desugar to a normal `fn` that returns `impl Future` and add any desired bounds such as `Send`, but these cannot be relaxed without a breaking API change
-     */
+        use of `async fn` in public traits is discouraged as auto trait bounds cannot be specified
+       --> src/lib.rs:547:5
+        |
+    547 |     async fn get_authenticator(&mut self) -> Result<Arc<String>, Box<dyn StdError>>;
+        |     ^^^^^
+        |
+        = note: you can suppress this lint if you plan to use the trait only in your own code, or do not care about auto traits like `Send` on the `Future`
+        = note: `#[warn(async_fn_in_trait)]` on by default
+    help: you can alternatively desugar to a normal `fn` that returns `impl Future` and add any desired bounds such as `Send`, but these cannot be relaxed without a breaking API change
+         */
     // Returns a bearer token, which may be cached if refresh is false, otherwise a new token will be obtained.
     // async fn get_authenticator(&mut self) -> Result<Arc<String>, Box<dyn StdError>>;
-    fn get_authenticator(&self, refresh: bool) -> impl std::future::Future<Output = Result<Arc<String>, crate::Error>> + Send;
+    fn get_authenticator(
+        &self,
+        refresh: bool,
+    ) -> impl std::future::Future<Output = Result<Arc<String>, crate::Error>> + Send;
 
     // // Returns a fresh bearer token forcing a reauthentication
     // // async fn authenticate(&mut self) -> Result<Arc<String>, Box<dyn StdError>>;
@@ -175,18 +173,27 @@ pub trait GraphQLCaller {
     /// provides its own token, such as AuthenticatedRequestManager, uses that in place of None.
     ///
     /// The monitor is generic rather than dyn so that the returned future is Send whenever the monitor is.
-    fn call3<Q: crate::GraphQLQuery<R>, R: crate::GraphQLResponse, P: ProgressMonitor + ?Sized>(&self, query: &Q, token: Option<&Arc<String>>, progress: &P)
-        -> impl std::future::Future<Output = Result<R, crate::Error>>;
+    fn call3<Q: crate::GraphQLQuery<R>, R: crate::GraphQLResponse, P: ProgressMonitor + ?Sized>(
+        &self,
+        query: &Q,
+        token: Option<&Arc<String>>,
+        progress: &P,
+    ) -> impl std::future::Future<Output = Result<R, crate::Error>>;
 
     /// Execute a query with an optional bearer token.
-    fn call2<Q: crate::GraphQLQuery<R>, R: crate::GraphQLResponse>(&self, query: &Q, token: Option<&Arc<String>>)
-        -> impl std::future::Future<Output = Result<R, crate::Error>> {
+    fn call2<Q: crate::GraphQLQuery<R>, R: crate::GraphQLResponse>(
+        &self,
+        query: &Q,
+        token: Option<&Arc<String>>,
+    ) -> impl std::future::Future<Output = Result<R, crate::Error>> {
         self.call3(query, token, &NoProgress)
     }
 
     /// Execute a query, with whatever authentication this caller provides.
-    fn call<Q: crate::GraphQLQuery<R>, R: crate::GraphQLResponse>(&self, query: &Q)
-        -> impl std::future::Future<Output = Result<R, crate::Error>> {
+    fn call<Q: crate::GraphQLQuery<R>, R: crate::GraphQLResponse>(
+        &self,
+        query: &Q,
+    ) -> impl std::future::Future<Output = Result<R, crate::Error>> {
         self.call2(query, None)
     }
 }

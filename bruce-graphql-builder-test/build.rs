@@ -1,5 +1,5 @@
-use std::{env, error::Error, fs::File, path::Path, process};
 use std::io::Write;
+use std::{env, error::Error, fs::File, path::Path, process};
 
 // fn get_current_working_dir() -> String {
 //     let res = std::env::current_dir();
@@ -16,8 +16,8 @@ fn main() {
 }
 
 // Example custom build script.
-fn build()  -> Result<(), Box<dyn Error>> {
-    // panic!("Panic cwd={}", get_current_working_dir()); 
+fn build() -> Result<(), Box<dyn Error>> {
+    // panic!("Panic cwd={}", get_current_working_dir());
 
     if let Some(dir) = env::var_os("OUT_DIR") {
         let dest_path = Path::new(&dir).join("crate_info.rs");
@@ -25,13 +25,20 @@ fn build()  -> Result<(), Box<dyn Error>> {
 
         let mut file = File::create(dest_path)?;
 
-        writeln!(file, r#"
+        writeln!(
+            file,
+            r#"
 mod create_info {{
     pub const PACKAGE_NAME: &'static str = "{}";
     pub const PACKAGE_VERSION: &'static str = "{}";
     pub const USER_AGENT: &'static str = "{}-{}";
 }}
-"#, env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"), env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))?;
+"#,
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION"),
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION")
+        )?;
     }
 
     println!("cargo::rerun-if-changed=build.rs");
@@ -41,9 +48,11 @@ mod create_info {{
         .with_schema("graphql/example/schema.graphql")
         .with_query("graphql/example/get-luke.graphql", "get-example")
         .with_query("graphql/example/get-logged-in-user.graphql", "get-logged-in-user")
-        .with_query("../bruce-graphql-builder-test/graphql/example/get-meters.graphql", "meters")
+        .with_query(
+            "../bruce-graphql-builder-test/graphql/example/get-meters.graphql",
+            "meters",
+        )
         .build()?;
-
 
     bruce_graphql_builder::builder("swapi")
         .with_schema("graphql/swapi/schema.graphql")

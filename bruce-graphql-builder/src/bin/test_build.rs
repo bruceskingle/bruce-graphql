@@ -1,8 +1,7 @@
 use std::error::Error;
 
 // Example custom build script.
-fn main()  -> Result<(), Box<dyn Error>> {
-   
+fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo::rerun-if-changed=build.rs");
     println!("cargo::rerun-if-changed=graphql_builder/src/lib.rs");
 
@@ -29,19 +28,14 @@ fn main()  -> Result<(), Box<dyn Error>> {
         .with_type("DateTime", "bruce_graphql::types::DateTime")
         .with_type("Decimal", "crate::octopus::decimal::Decimal")
         .with_schema("../../marco-sparko/graphql/octopus/octopus-schema.graphql")
-
-
         .with_query("../../marco-sparko/graphql/octopus/Login.graphql", "login")
         .with_query("../../marco-sparko/graphql/octopus/account.graphql", "account")
         .with_query("../../marco-sparko/graphql/octopus/meter.graphql", "meter")
         .with_query("../../marco-sparko/graphql/octopus/bill.graphql", "bill")
-
-
         // .with_query("../bruce-graphql-builder-test/graphql/octopus/test.graphql", "yesy")
         // .with_query("../bruce-graphql-builder-test/graphql/octopus/main.graphql", "main")
         // .with_query("../../marco-sparko/graphql/octopus/bill.graphql", "bill")
         // .with_query("../../marco-sparko/graphql/octopus/meter.graphql", "meter")
-
         // .with_query("../../marco-sparko/graphql/octopus/meter.graphql", "meter")
         // .with_print(true)
         .build()?;

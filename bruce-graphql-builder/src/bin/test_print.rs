@@ -1,19 +1,17 @@
 use std::error::Error;
 
 // Example custom build script.
-fn main()  -> Result<(), Box<dyn Error>> {
-   
+fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo::rerun-if-changed=build.rs");
     println!("cargo::rerun-if-changed=graphql_builder/src/lib.rs");
 
-
-        // bruce_graphql_builder::builder("swapi")
-        // .with_schema("../bruce-graphql-builder-test/graphql/swapi/schema.graphql")
-        // .with_query("../bruce-graphql-builder-test/graphql/swapi/get-luke.graphql", "luke")
-        // // .with_query("../bruce-graphql-builder-test/graphql/query/swapi/fragment.graphql", "fragment")
-        // .with_print(true)
-        // .with_generate(false)
-        // .build()?;
+    // bruce_graphql_builder::builder("swapi")
+    // .with_schema("../bruce-graphql-builder-test/graphql/swapi/schema.graphql")
+    // .with_query("../bruce-graphql-builder-test/graphql/swapi/get-luke.graphql", "luke")
+    // // .with_query("../bruce-graphql-builder-test/graphql/query/swapi/fragment.graphql", "fragment")
+    // .with_print(true)
+    // .with_generate(false)
+    // .build()?;
 
     //     bruce_graphql_builder::builder("example")
     //     .with_schema("../bruce-graphql-builder-test/graphql/example/schema.graphql")
@@ -23,7 +21,6 @@ fn main()  -> Result<(), Box<dyn Error>> {
     //     .with_print(true)
     //     .with_generate(false)
     //     .build()?;
-
 
     // bruce_graphql_builder::builder("swapi")
     //     .with_schema("../bruce-graphql-builder-test/graphql/swapi/schema.graphql")
@@ -43,4 +40,3 @@ fn main()  -> Result<(), Box<dyn Error>> {
         .build()?;
     Ok(())
 }
-

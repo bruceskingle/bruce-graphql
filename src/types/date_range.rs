@@ -16,13 +16,17 @@ impl DateRange {
         let now = DateTime::now_utc().date();
         let start = now.replace_day(1)?;
         let start_of_next_month = if start.month() == Month::December {
-            start.replace_month(time::Month::January)?.replace_year(start.year() + 1)?
-        }
-        else {
+            start
+                .replace_month(time::Month::January)?
+                .replace_year(start.year() + 1)?
+        } else {
             start.replace_month(start.month().next())?
         };
         let end = start_of_next_month.replace_ordinal(start_of_next_month.ordinal() - 1)?;
 
-        Ok(Self { start: Date::from(start), end: Date::from(end) })
+        Ok(Self {
+            start: Date::from(start),
+            end: Date::from(end),
+        })
     }
 }

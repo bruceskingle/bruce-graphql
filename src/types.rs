@@ -61,7 +61,11 @@ where
     let count = items.len();
     let items: Vec<T> = items.into_iter().flatten().collect();
     if items.len() < count {
-        println!("Left out {} null items of a list of {} in a response", count - items.len(), count);
+        println!(
+            "Left out {} null items of a list of {} in a response",
+            count - items.len(),
+            count
+        );
     }
     Ok(items)
 }

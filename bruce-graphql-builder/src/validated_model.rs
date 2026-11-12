@@ -8,8 +8,8 @@ use inflections::case::to_snake_case;
 
 use crate::parsed_model::{BuiltinType, DefinedTypeName, OperationType};
 use crate::utils::to_pascal_case;
-use crate::{Name, BuildError, Error, ErrorCollector, Isomorphic, Print, NameRegistry, TYPE_NAME};
 use crate::{parsed_model, Output};
+use crate::{BuildError, Error, ErrorCollector, Isomorphic, Name, NameRegistry, Print, TYPE_NAME};
 
 pub enum Optionality {
     Optional,
@@ -55,23 +55,21 @@ pub struct SharedMap<T> {
 
 impl<T> SharedMap<T> {
     pub fn builder() -> SharedMapBuilder<T> {
-        SharedMapBuilder {
-            map: IndexMap::new(),
-        }
+        SharedMapBuilder { map: IndexMap::new() }
     }
-    
+
     pub fn values(&self) -> indexmap::map::Values<'_, Name, Rc<T>> {
         self.map.values()
     }
-    
+
     pub fn get(&self, name: &String) -> Option<&Rc<T>> {
         self.map.get(name)
     }
-    
+
     pub fn is_empty(&self) -> bool {
         self.map.is_empty()
     }
-    
+
     pub fn keys(&self) -> indexmap::map::Keys<'_, Name, Rc<T>> {
         self.map.keys()
     }
@@ -92,9 +90,7 @@ pub struct SharedMapBuilder<T> {
 
 impl<T> SharedMapBuilder<T> {
     pub fn new() -> SharedMapBuilder<T> {
-        SharedMapBuilder {
-            map: IndexMap::new(),
-        }
+        SharedMapBuilder { map: IndexMap::new() }
     }
 
     pub fn insert(&mut self, key: Name, value: Rc<T>) -> Option<Rc<T>> {
@@ -102,9 +98,7 @@ impl<T> SharedMapBuilder<T> {
     }
 
     pub fn build(self) -> SharedMap<T> {
-        SharedMap {
-            map: Rc::new(self.map),
-        }
+        SharedMap { map: Rc::new(self.map) }
     }
 }
 #[derive(Debug)]
@@ -153,34 +147,47 @@ impl Print for Selection {
 }
 
 impl Selection {
-    fn generate_fields(&self, out: &mut Output<'_>, selection_manager: &NameSpaceManager, schema: &Schema) -> Result<(), Error> {
+    fn generate_fields(
+        &self,
+        out: &mut Output<'_>,
+        selection_manager: &NameSpaceManager,
+        schema: &Schema,
+    ) -> Result<(), Error> {
         for field in self.fields.values() {
             field.generate_field(out, selection_manager, schema)?;
         }
 
         Ok(())
     }
-    
-    fn generate(&self, out: &mut Output<'_>, namespace_manager: &NameSpaceManager, schema: &Schema) -> Result<(), Error> {
+
+    fn generate(
+        &self,
+        out: &mut Output<'_>,
+        namespace_manager: &NameSpaceManager,
+        schema: &Schema,
+    ) -> Result<(), Error> {
         let name = namespace_manager.get_name(&self.index);
 
         if let Some(implemented_by) = &self.implemented_by {
             writeln!(out, "// implemented_by {:?}", implemented_by)?;
         }
-        
+
         match &self.implemented_by {
             None => {
                 writeln!(out, "/* No variants */")?;
-                
-                writeln!(out, "#[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty, Clone)]")?;
+
+                writeln!(
+                    out,
+                    "#[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty, Clone)]"
+                )?;
                 if *name != self.graphql_type_name {
                     writeln!(out, "#[serde(rename = \"{}\")]", self.graphql_type_name)?;
                 }
                 writeln!(out, "pub struct {} {{", name)?;
-        
+
                 {
                     let mut out = out.indent();
-                    
+
                     self.generate_fields(&mut out, namespace_manager, schema)?;
                     for variant_selection in &self.variants {
                         writeln!(out, "// variant {:?}", variant_selection.name)?;
@@ -189,51 +196,57 @@ impl Selection {
                         }
                     }
                 }
-        
+
                 writeln!(out, "}}")?;
                 writeln!(out, "")?;
-            },
+            }
             Some(implemented_by) => {
                 if self.variants.len() < 2 && implemented_by.len() < 2 {
                     writeln!(out, "/* <2 variant */")?;
-                    
-                    writeln!(out, "#[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty, Clone)]")?;
+
+                    writeln!(
+                        out,
+                        "#[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty, Clone)]"
+                    )?;
                     if *name != self.graphql_type_name {
                         writeln!(out, "#[serde(rename = \"{}\")]", self.graphql_type_name)?;
                     }
                     writeln!(out, "pub struct {} {{", name)?;
-            
+
                     {
                         let mut out = out.indent();
-                        
+
                         self.generate_fields(&mut out, namespace_manager, schema)?;
                         for variant_selection in &self.variants {
                             for field in variant_selection.fields.values() {
                                 field.generate_field(&mut out, namespace_manager, schema)?;
                             }
                         }
-        
                     }
-            
+
                     writeln!(out, "}}")?;
                     writeln!(out, "")?;
-                }
-                else 
-                {
-                    writeln!(out, "/* {} variants {} implementors */", self.variants.len(), implemented_by.len())?;
-        
+                } else {
+                    writeln!(
+                        out,
+                        "/* {} variants {} implementors */",
+                        self.variants.len(),
+                        implemented_by.len()
+                    )?;
+
                     let abstract_name = Rc::new(format!("Abstract{}", name));
                     let base_type_name = to_pascal_case(name);
                     let base_member_name = to_snake_case(name);
-                    writeln!(out, "#[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty, Clone)]")?;
+                    writeln!(
+                        out,
+                        "#[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty, Clone)]"
+                    )?;
                     writeln!(out, "#[serde(tag = \"{}\")]", TYPE_NAME)?;
                     writeln!(out, "pub enum {} {{", base_type_name)?;
-
 
                     let mut variant_map = IndexMap::new();
                     writeln!(out, "/* variants")?;
                     for variant in &self.variants {
-
                         writeln!(out, "{} {:?}", &variant.type_condition, &variant)?;
                         variant_map.insert(&variant.type_condition, variant);
                     }
@@ -245,21 +258,20 @@ impl Selection {
                         if let Some(variant) = variant_map.get(implementor) {
                             let name = namespace_manager.get_name(&variant.index);
                             writeln!(out, "    {}({}),", enum_variant_name, name)?;
-                        }
-                        else {
+                        } else {
                             writeln!(out, "    {}({}),", enum_variant_name, abstract_name)?;
                         }
                     }
-            
+
                     writeln!(out, "}}")?;
                     writeln!(out, "")?;
 
-                    if ! self.fields.is_empty() {
+                    if !self.fields.is_empty() {
                         writeln!(out, "impl {} {{", base_type_name)?;
-                
+
                         {
                             let mut out = out.indent();
-                            
+
                             writeln!(out, "pub fn as_{}(&self) -> &{} {{", base_member_name, abstract_name)?;
                             {
                                 let mut out = out.indent();
@@ -269,12 +281,19 @@ impl Selection {
 
                                     for implementor in implemented_by {
                                         let enum_variant_name = to_pascal_case(&implementor);
-                
+
                                         if let Some(_) = variant_map.get(implementor) {
-                                            writeln!(out, "{}::{}(content) => content.as_{}(),", base_type_name, enum_variant_name, base_member_name)?;
-                                        }
-                                        else {
-                                            writeln!(out, "{}::{}(content) => content,", base_type_name, enum_variant_name)?;
+                                            writeln!(
+                                                out,
+                                                "{}::{}(content) => content.as_{}(),",
+                                                base_type_name, enum_variant_name, base_member_name
+                                            )?;
+                                        } else {
+                                            writeln!(
+                                                out,
+                                                "{}::{}(content) => content,",
+                                                base_type_name, enum_variant_name
+                                            )?;
                                         }
                                     }
                                 }
@@ -283,81 +302,84 @@ impl Selection {
                             writeln!(out, "}}")?;
                             writeln!(out, "")?;
                         }
-                
+
                         writeln!(out, "}}")?;
                         writeln!(out, "")?;
                     }
-        
-                    writeln!(out, "#[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty, Clone)]")?;
+
+                    writeln!(
+                        out,
+                        "#[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty, Clone)]"
+                    )?;
                     writeln!(out, "pub struct {} {{", abstract_name)?;
-            
+
                     {
                         let mut out = out.indent();
-                        
+
                         self.generate_fields(&mut out, namespace_manager, schema)?;
                     }
-            
+
                     writeln!(out, "}}")?;
                     writeln!(out, "")?;
-    
+
                     writeln!(out, "impl {} {{", abstract_name)?;
-            
+
                     {
                         let mut out = out.indent();
-                        
+
                         writeln!(out, "pub fn as_{}(&self) -> &{} {{", base_member_name, abstract_name)?;
                         writeln!(out, "    self")?;
                         writeln!(out, "}}")?;
                     }
-            
+
                     writeln!(out, "}}")?;
                     writeln!(out, "")?;
 
-                    
-        
                     for variant in &self.variants {
                         let variant_name = namespace_manager.get_name(&variant.index);
                         let rust_variant_name = to_pascal_case(&variant_name);
-        
+
                         writeln!(out, "// Variant names {:?}", variant.name)?;
-                        writeln!(out, "#[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty, Clone)]")?;
+                        writeln!(
+                            out,
+                            "#[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty, Clone)]"
+                        )?;
                         writeln!(out, "#[serde(rename = \"{}\")]", variant_name)?;
                         writeln!(out, "pub struct {} {{", rust_variant_name)?;
-                
+
                         {
                             let mut out = out.indent();
-        
-                            if ! self.fields.is_empty() {
+
+                            if !self.fields.is_empty() {
                                 writeln!(out, "#[serde(flatten)]")?;
                                 writeln!(out, "pub {}_: {},", base_member_name, abstract_name)?;
                             }
-                            
+
                             for (_name, field) in &variant.fields {
                                 field.generate_field(&mut out, namespace_manager, schema)?;
                             }
                         }
-                
+
                         writeln!(out, "}}")?;
                         writeln!(out, "")?;
-        
-                        if ! self.fields.is_empty() {
+
+                        if !self.fields.is_empty() {
                             writeln!(out, "impl {} {{", rust_variant_name)?;
-                    
+
                             {
                                 let mut out = out.indent();
-                                
+
                                 writeln!(out, "pub fn as_{}(&self) -> &{} {{", base_member_name, abstract_name)?;
                                 writeln!(out, "    &self.{}_", base_member_name)?;
                                 writeln!(out, "}}")?;
                             }
-                    
+
                             writeln!(out, "}}")?;
                             writeln!(out, "")?;
                         }
-                        
                     }
                 }
-            },
+            }
         }
         Ok(())
     }
@@ -381,7 +403,12 @@ pub struct SelectionBuilder {
 }
 
 impl SelectionBuilder {
-    pub fn new(graphql_type_name: Name, preferred_type_name: Name, implemented_by: &Option<Vec<Name>>, detect_pagination: bool) -> SelectionBuilder {
+    pub fn new(
+        graphql_type_name: Name,
+        preferred_type_name: Name,
+        implemented_by: &Option<Vec<Name>>,
+        detect_pagination: bool,
+    ) -> SelectionBuilder {
         // println!("SelectionBuilder new");
         SelectionBuilder {
             graphql_type_name,
@@ -393,7 +420,12 @@ impl SelectionBuilder {
         }
     }
 
-    pub fn with_field(&mut self, optional_type_conditions: &Option<Vec<Name>>, field_name: &Name, field: SelectionField) -> &mut Self {
+    pub fn with_field(
+        &mut self,
+        optional_type_conditions: &Option<Vec<Name>>,
+        field_name: &Name,
+        field: SelectionField,
+    ) -> &mut Self {
         println!("SelectionBuilder field {}", field_name);
         if let Some(type_conditions) = optional_type_conditions {
             for variant_type_condition in type_conditions {
@@ -401,20 +433,19 @@ impl SelectionBuilder {
                 if let Some((_, variant)) = self.variants.get_mut(variant_type_condition) {
                     variant.insert(field_name.clone(), field.clone());
                     // names.insert(variant_name.clone());
-                }
-                else {
+                } else {
                     println!("insert variant_type_condition {}", &variant_type_condition);
                     let mut fields = IndexMap::new();
                     fields.insert(field_name.clone(), field.clone());
                     // let mut names = IndexSet::new();
                     // names.insert(variant_name.clone());
                     // self.variants.insert(variant_type_condition.clone(), (variant_id.fragment_name.clone(), fields));
-                    self.variants.insert(variant_type_condition.clone(), (variant_type_condition.clone(), fields));
+                    self.variants
+                        .insert(variant_type_condition.clone(), (variant_type_condition.clone(), fields));
                 }
             }
-        }
-        else {
-            self.fields.insert(field_name.clone(), field); 
+        } else {
+            self.fields.insert(field_name.clone(), field);
         }
         self
     }
@@ -426,7 +457,6 @@ impl SelectionBuilder {
     // }
 
     pub fn build(self, manager: &mut NameSpaceManager) -> SelectionFieldType {
-
         // println!("SelectionBuilder build {}", self.graphql_type_name);
         // for name in self.fields.keys() {
         //     println!("    {}", name);
@@ -456,7 +486,6 @@ impl SelectionBuilder {
             if field.selection_type.is_pagination_internal() {
                 println!("\n\nUNUSED    {}", &field.name);
             }
-           
         }
 
         for (_cond, variant) in self.variants.values() {
@@ -467,7 +496,13 @@ impl SelectionBuilder {
             }
         }
 
-        let index = manager.insert(self.graphql_type_name, self.preferred_type_name, self.fields, self.variants, self.implemented_by);
+        let index = manager.insert(
+            self.graphql_type_name,
+            self.preferred_type_name,
+            self.fields,
+            self.variants,
+            self.implemented_by,
+        );
 
         SelectionFieldType::Selection(index)
     }
@@ -482,7 +517,7 @@ impl SelectionBuilder {
         let mut page_info_type = None;
         let mut edge_of_type = None;
         let mut page_of_type = None;
-        
+
         // let keys = if self.variants.is_empty() { self.fields.keys() } else {
         //     let (a,b) = self.variants.values().next().unwrap();
         //     b.keys()
@@ -513,83 +548,79 @@ impl SelectionBuilder {
                 if name == "pageInfo" {
                     page_info_type = Some(SelectionFieldType::remove_wrapper(&field.selection_type));
                     cantbe_edge_of = true;
-                    cantbe_page_info=true;
-                }
-                else if name == "edges" {
+                    cantbe_page_info = true;
+                } else if name == "edges" {
                     page_of_type = Some(SelectionFieldType::remove_wrapper(&field.selection_type));
                     cantbe_edge_of = true;
-                    cantbe_page_info=true;
-                }
-                else if name == "cursor" {
+                    cantbe_page_info = true;
+                } else if name == "cursor" {
                     has_cursor = true;
                     cantbe_page_of = true;
-                    cantbe_page_info=true;
-                }
-                else if name == "node" {
+                    cantbe_page_info = true;
+                } else if name == "node" {
                     edge_of_type = Some(SelectionFieldType::remove_wrapper(&field.selection_type));
                     cantbe_page_of = true;
-                    cantbe_page_info=true;
-                }
-                else if name == "startCursor" || name == "endCursor" || name == "hasPreviousPage" || name == "hasNextPage" {
+                    cantbe_page_info = true;
+                } else if name == "startCursor"
+                    || name == "endCursor"
+                    || name == "hasPreviousPage"
+                    || name == "hasNextPage"
+                {
                     page_info_fields.insert(name);
                     cantbe_page_of = true;
-                    cantbe_edge_of=true;
-                }
-                else {
+                    cantbe_edge_of = true;
+                } else {
                     cantbe_page_of = true;
                     cantbe_edge_of = true;
-                    cantbe_page_info=true;
+                    cantbe_page_info = true;
                 }
             }
         }
 
-        if cantbe_page_of==false && page_of_type.is_some() {
-            if let Some(page_type) =  page_of_type {
+        if cantbe_page_of == false && page_of_type.is_some() {
+            if let Some(page_type) = page_of_type {
                 if let SelectionFieldType::EdgeOf(selection_field_type) = page_type.as_ref() {
                     if let Some(page_info) = page_info_type {
                         match page_info.as_ref() {
                             SelectionFieldType::PageInfo => {
                                 println!("!! Its PageOf<{:?}>", &selection_field_type);
-                                return Some(SelectionFieldType::PageOf(selection_field_type.clone()))
-                            },
+                                return Some(SelectionFieldType::PageOf(selection_field_type.clone()));
+                            }
                             SelectionFieldType::ForwardPageInfo => {
                                 println!("!! Its ForwardPageOf<{:?}>", &selection_field_type);
-                                return Some(SelectionFieldType::ForwardPageOf(selection_field_type.clone()))
-                            },
+                                return Some(SelectionFieldType::ForwardPageOf(selection_field_type.clone()));
+                            }
                             SelectionFieldType::ReversePageInfo => {
                                 println!("!! Its ReversePageOf<{:?}>", &selection_field_type);
-                                return Some(SelectionFieldType::ReversePageOf(selection_field_type.clone()))
-                            },
+                                return Some(SelectionFieldType::ReversePageOf(selection_field_type.clone()));
+                            }
                             _ => {}
                         }
-                            
                     }
                 }
             }
-           
         }
 
-        if cantbe_page_info==false && page_info_fields.len() > 1 {
+        if cantbe_page_info == false && page_info_fields.len() > 1 {
             let maybe_forward_page = page_info_fields.contains("hasNextPage") && page_info_fields.contains("endCursor");
-            let maybe_reverse_page = page_info_fields.contains("hasPreviousPage") && page_info_fields.contains("startCursor");
+            let maybe_reverse_page =
+                page_info_fields.contains("hasPreviousPage") && page_info_fields.contains("startCursor");
 
             if maybe_forward_page && maybe_reverse_page {
                 println!("!! Its PageInfo");
                 return Some(SelectionFieldType::PageInfo);
-            }
-            else if maybe_forward_page {
+            } else if maybe_forward_page {
                 println!("!! Its ForwardPageInfo");
                 return Some(SelectionFieldType::ForwardPageInfo);
-            }
-            else if maybe_reverse_page {
+            } else if maybe_reverse_page {
                 println!("!! Its ReversePageInfo");
                 return Some(SelectionFieldType::ReversePageInfo);
             }
         }
 
-        if cantbe_edge_of==false && has_cursor && edge_of_type.is_some() {
+        if cantbe_edge_of == false && has_cursor && edge_of_type.is_some() {
             println!("!! ItsEdgeOf<{:?}>", edge_of_type.as_ref());
-            return Some(SelectionFieldType::EdgeOf(edge_of_type.unwrap()))
+            return Some(SelectionFieldType::EdgeOf(edge_of_type.unwrap()));
         }
 
         None
@@ -620,115 +651,101 @@ impl Isomorphic for SelectionFieldType {
             SelectionFieldType::BuiltinType(builtin_type) => {
                 if let SelectionFieldType::BuiltinType(other_type) = other {
                     builtin_type == other_type
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
             SelectionFieldType::Currency => {
                 if let SelectionFieldType::Currency = other {
                     true
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
             SelectionFieldType::Scalar(name) => {
                 if let SelectionFieldType::Scalar(other_name) = other {
                     name == other_name
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
             SelectionFieldType::Enum(name) => {
                 if let SelectionFieldType::Enum(other_name) = other {
                     name == other_name
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
             SelectionFieldType::Selection(index) => {
                 if let SelectionFieldType::Selection(other_index) = other {
                     index == other_index
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
             SelectionFieldType::Required(selection_field_type) => {
                 if let SelectionFieldType::Required(other_field_type) = other {
                     selection_field_type.is_isomorphic(other_field_type)
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
             SelectionFieldType::Array(selection_field_type) => {
                 if let SelectionFieldType::Array(other_field_type) = other {
                     selection_field_type.is_isomorphic(other_field_type)
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
             SelectionFieldType::EdgeOf(selection_field_type) => {
                 if let SelectionFieldType::EdgeOf(other_field_type) = other {
                     selection_field_type.is_isomorphic(other_field_type)
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
             SelectionFieldType::PageInfo => {
                 if let SelectionFieldType::PageInfo = other {
                     true
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
             SelectionFieldType::ForwardPageInfo => {
                 if let SelectionFieldType::ForwardPageInfo = other {
                     true
-                }
-                else {
+                } else {
                     false
                 }
-            },
-            SelectionFieldType::ReversePageInfo =>{
+            }
+            SelectionFieldType::ReversePageInfo => {
                 if let SelectionFieldType::ReversePageInfo = other {
                     true
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
             SelectionFieldType::PageOf(selection_field_type) => {
                 if let SelectionFieldType::PageOf(other_field_type) = other {
                     selection_field_type.is_isomorphic(other_field_type)
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
             SelectionFieldType::ForwardPageOf(selection_field_type) => {
                 if let SelectionFieldType::ForwardPageOf(other_field_type) = other {
                     selection_field_type.is_isomorphic(other_field_type)
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
             SelectionFieldType::ReversePageOf(selection_field_type) => {
                 if let SelectionFieldType::ReversePageOf(other_field_type) = other {
                     selection_field_type.is_isomorphic(other_field_type)
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
         }
     }
 }
@@ -756,18 +773,35 @@ impl Display for SelectionFieldType {
 
 impl SelectionFieldType {
     // if nonnull then the type is coerced to be nonnull at all levels
-    pub fn rust_type(&self, selection_manager: &NameSpaceManager, schema: &Schema, nonnull: bool, mut nonnull_once: bool) -> String {
-        println!("rust_type({:?} {}, nonnull={}, nonnull_once={})", self, self, nonnull, nonnull_once);
+    pub fn rust_type(
+        &self,
+        selection_manager: &NameSpaceManager,
+        schema: &Schema,
+        nonnull: bool,
+        mut nonnull_once: bool,
+    ) -> String {
+        println!(
+            "rust_type({:?} {}, nonnull={}, nonnull_once={})",
+            self, self, nonnull, nonnull_once
+        );
         if let SelectionFieldType::Selection(content) = self {
-            println!(" which is selection({}) = {}", content, selection_manager.get_name(content));
+            println!(
+                " which is selection({}) = {}",
+                content,
+                selection_manager.get_name(content)
+            );
         }
         if !nonnull && nonnull_once {
             println!("!nonnull && nonnull_once");
         }
 
         // Will never be called with Required variant.
-        fn do_rust_type(input: &SelectionFieldType, selection_manager: &NameSpaceManager, schema: &Schema, nonnull: bool) -> String {
-
+        fn do_rust_type(
+            input: &SelectionFieldType,
+            selection_manager: &NameSpaceManager,
+            schema: &Schema,
+            nonnull: bool,
+        ) -> String {
             println!("do_rust_type({:?}, nonnull={}", input, nonnull);
             match input {
                 SelectionFieldType::BuiltinType(builtin_type) => builtin_type.rust_type().to_string(),
@@ -778,53 +812,74 @@ impl SelectionFieldType {
                     let name = selection_manager.get_name(id).to_string();
                     println!("rust_type({}) = {}", id, &name);
                     name
-                },
+                }
                 SelectionFieldType::Required(_) => unreachable!(),
-                SelectionFieldType::Array(wrapped) => format!("Vec<{}>", wrapped.rust_type(selection_manager, schema, nonnull, true)), // Force nonnull so we dobt generate Vec<Option<foo>>
-                SelectionFieldType::EdgeOf(wrapped) => format!("bruce_graphql::types::EdgeOf<{}>", wrapped.rust_type(selection_manager, schema, nonnull, false)),
+                SelectionFieldType::Array(wrapped) => {
+                    format!("Vec<{}>", wrapped.rust_type(selection_manager, schema, nonnull, true))
+                } // Force nonnull so we dobt generate Vec<Option<foo>>
+                SelectionFieldType::EdgeOf(wrapped) => format!(
+                    "bruce_graphql::types::EdgeOf<{}>",
+                    wrapped.rust_type(selection_manager, schema, nonnull, false)
+                ),
                 SelectionFieldType::PageInfo => format!("bruce_graphql::types::PageInfo"),
                 SelectionFieldType::ForwardPageInfo => format!("bruce_graphql::types::ForwardPageInfo"),
                 SelectionFieldType::ReversePageInfo => format!("bruce_graphql::types::ReversePageInfo"),
-                SelectionFieldType::PageOf(wrapped) => format!("bruce_graphql::types::PageOf<{}>", wrapped.rust_type(selection_manager, schema, nonnull, true)),
-                SelectionFieldType::ForwardPageOf(wrapped) => format!("bruce_graphql::types::ForwardPageOf<{}>", wrapped.rust_type(selection_manager, schema, nonnull, true)),
-                SelectionFieldType::ReversePageOf(wrapped) => format!("bruce_graphql::types::ReversePageOf<{}>", wrapped.rust_type(selection_manager, schema, nonnull, true)),
+                SelectionFieldType::PageOf(wrapped) => format!(
+                    "bruce_graphql::types::PageOf<{}>",
+                    wrapped.rust_type(selection_manager, schema, nonnull, true)
+                ),
+                SelectionFieldType::ForwardPageOf(wrapped) => format!(
+                    "bruce_graphql::types::ForwardPageOf<{}>",
+                    wrapped.rust_type(selection_manager, schema, nonnull, true)
+                ),
+                SelectionFieldType::ReversePageOf(wrapped) => format!(
+                    "bruce_graphql::types::ReversePageOf<{}>",
+                    wrapped.rust_type(selection_manager, schema, nonnull, true)
+                ),
             }
         }
 
         if let SelectionFieldType::Array(wrapped) = self {
-            println!("rust_type Array({:?}, nonnull={}, nonnull_once={})", wrapped, nonnull, nonnull_once);
+            println!(
+                "rust_type Array({:?}, nonnull={}, nonnull_once={})",
+                wrapped, nonnull, nonnull_once
+            );
             nonnull_once = true; // Force nonnull so we don't generate Option<Vec<foo>>
         }
         // if let SelectionFieldType::EdgeOf(wrapped, params) = self {
         //     println!("rust_type EdgeOf({:?}, nonnull={}, nonnull_once={})", wrapped, nonnull, nonnull_once);
         //     nonnull_once = true; // Force nonnull so we don't generate Option<Vec<foo>>
         // }
-        if let SelectionFieldType::PageOf(wrapped) | SelectionFieldType::ForwardPageOf(wrapped) | SelectionFieldType::ReversePageOf(wrapped) = self {
-            println!("rust_type PageOf({:?}, nonnull={}, nonnull_once={})", wrapped, nonnull, nonnull_once);
+        if let SelectionFieldType::PageOf(wrapped)
+        | SelectionFieldType::ForwardPageOf(wrapped)
+        | SelectionFieldType::ReversePageOf(wrapped) = self
+        {
+            println!(
+                "rust_type PageOf({:?}, nonnull={}, nonnull_once={})",
+                wrapped, nonnull, nonnull_once
+            );
             nonnull_once = true; // Force nonnull so we don't generate Option<Vec<foo>>
         }
 
         if let SelectionFieldType::Required(wrapped) = self {
             do_rust_type(wrapped, selection_manager, schema, nonnull)
-        }
-        else {
-            if nonnull || nonnull_once{
+        } else {
+            if nonnull || nonnull_once {
                 do_rust_type(self, selection_manager, schema, nonnull)
-            }
-            else {
+            } else {
                 format!("Option<{}>", do_rust_type(self, selection_manager, schema, nonnull))
             }
         }
     }
-    
+
     fn remove_wrapper(this: &Rc<SelectionFieldType>) -> Rc<SelectionFieldType> {
         match this.as_ref() {
             SelectionFieldType::Required(wrapped) => Self::remove_wrapper(wrapped),
             SelectionFieldType::Array(wrapped) => Self::remove_wrapper(wrapped),
-            _ => this.clone()
+            _ => this.clone(),
         }
     }
-    
+
     fn is_pagination_internal(&self) -> bool {
         match self {
             SelectionFieldType::EdgeOf(_) => true,
@@ -844,7 +899,6 @@ impl SelectionFieldType {
         }
     }
 
-
     // pub fn is_array(&self) -> bool {
     //     match self {
     //         SelectionFieldType::BuiltinType(_) => false,
@@ -857,7 +911,6 @@ impl SelectionFieldType {
     // }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct SelectionField {
     pub name: Name,
@@ -865,7 +918,12 @@ pub struct SelectionField {
     pub force_nonnull: bool,
 }
 impl SelectionField {
-    fn generate_field(&self, out: &mut Output, selection_manager: &NameSpaceManager, schema: &Schema) -> Result<(), std::io::Error> {
+    fn generate_field(
+        &self,
+        out: &mut Output,
+        selection_manager: &NameSpaceManager,
+        schema: &Schema,
+    ) -> Result<(), std::io::Error> {
         if *self.name != TYPE_NAME {
             let field_name = to_snake_case(&self.name);
 
@@ -878,15 +936,23 @@ impl SelectionField {
                 _ => false,
             };
             if is_list {
-                writeln!(out, "#[serde(default, deserialize_with = \"bruce_graphql::types::list_without_nulls\")]")?;
+                writeln!(
+                    out,
+                    "#[serde(default, deserialize_with = \"bruce_graphql::types::list_without_nulls\")]"
+                )?;
             }
 
             // if self.selection_type.is_array() {
             //     writeln!(out, "#[serde(skip_serializing)]")?;
             // }
-            writeln!(out, "pub {}_: {}, // T1", field_name, self.selection_type.rust_type(selection_manager, schema, self.force_nonnull, false))
-        }
-        else {
+            writeln!(
+                out,
+                "pub {}_: {}, // T1",
+                field_name,
+                self.selection_type
+                    .rust_type(selection_manager, schema, self.force_nonnull, false)
+            )
+        } else {
             Ok(())
         }
     }
@@ -914,51 +980,45 @@ impl Isomorphic for DefinedType {
             DefinedType::Scalar(name) => {
                 if let DefinedType::Scalar(other_name) = other {
                     name == other_name
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
             DefinedType::Object(name) => {
                 if let DefinedType::Object(other_name) = other {
                     name == other_name
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
             DefinedType::Interface(name) => {
                 if let DefinedType::Interface(other_name) = other {
                     name == other_name
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
             DefinedType::Union(name) => {
                 if let DefinedType::Union(other_name) = other {
                     name == other_name
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
             DefinedType::Enum(name) => {
                 if let DefinedType::Enum(other_name) = other {
                     name == other_name
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
             DefinedType::InputObject(name) => {
                 if let DefinedType::InputObject(other_name) = other {
                     name == other_name
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
         }
     }
 }
@@ -976,7 +1036,7 @@ impl Display for DefinedType {
     }
 }
 
-impl DefinedType {    
+impl DefinedType {
     fn rust_type(&self) -> String {
         match self {
             DefinedType::Scalar(name) => to_pascal_case(name),
@@ -987,7 +1047,7 @@ impl DefinedType {
             DefinedType::InputObject(name) => to_pascal_case(name),
         }
     }
-    
+
     fn graphql_type(&self) -> &str {
         match self {
             DefinedType::Scalar(name) => name,
@@ -1012,62 +1072,96 @@ impl Isomorphic for ScalarType {
             ScalarType::DefinedType(defined_type) => {
                 if let ScalarType::DefinedType(other_type) = other {
                     defined_type.is_isomorphic(&other_type)
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
             ScalarType::BuiltinType(builtin_type) => {
                 if let ScalarType::BuiltinType(other_type) = other {
                     builtin_type == other_type
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
         }
     }
 }
 
 impl ScalarType {
-    fn new(err: &mut ErrorCollector, parsed: &parsed_model::ScalarType, schema: &Rc<parsed_model::Schema>) -> Result<Self, Error> {
+    fn new(
+        err: &mut ErrorCollector,
+        parsed: &parsed_model::ScalarType,
+        schema: &Rc<parsed_model::Schema>,
+    ) -> Result<Self, Error> {
         match parsed {
             parsed_model::ScalarType::DefinedType(defined_type) => {
                 if let Some(def) = schema.named_types.get(&defined_type.name) {
                     Ok(match def {
-                        parsed_model::TypeDefinition::Scalar(content) =>ScalarType::DefinedType(DefinedType::Scalar(content.name.clone())),
-                        parsed_model::TypeDefinition::Object(content) =>ScalarType::DefinedType(DefinedType::Object(content.name.clone())),
-                        parsed_model::TypeDefinition::Interface(content) =>ScalarType::DefinedType(DefinedType::Interface(content.name.clone())),
-                        parsed_model::TypeDefinition::Union(content) =>ScalarType::DefinedType(DefinedType::Union(content.name.clone())),
-                        parsed_model::TypeDefinition::Enum(content) => ScalarType::DefinedType(DefinedType::Enum(content.name.clone())),
-                        parsed_model::TypeDefinition::InputObject(content) =>ScalarType::DefinedType(DefinedType::InputObject(content.name.clone())),
+                        parsed_model::TypeDefinition::Scalar(content) => {
+                            ScalarType::DefinedType(DefinedType::Scalar(content.name.clone()))
+                        }
+                        parsed_model::TypeDefinition::Object(content) => {
+                            ScalarType::DefinedType(DefinedType::Object(content.name.clone()))
+                        }
+                        parsed_model::TypeDefinition::Interface(content) => {
+                            ScalarType::DefinedType(DefinedType::Interface(content.name.clone()))
+                        }
+                        parsed_model::TypeDefinition::Union(content) => {
+                            ScalarType::DefinedType(DefinedType::Union(content.name.clone()))
+                        }
+                        parsed_model::TypeDefinition::Enum(content) => {
+                            ScalarType::DefinedType(DefinedType::Enum(content.name.clone()))
+                        }
+                        parsed_model::TypeDefinition::InputObject(content) => {
+                            ScalarType::DefinedType(DefinedType::InputObject(content.name.clone()))
+                        }
                     })
+                } else {
+                    err.fail(BuildError::UndefinedTypeError(
+                        defined_type.position.clone(),
+                        format!("Missing type {}", defined_type.name.clone()),
+                    ))
                 }
-                else {
-                    err.fail(BuildError::UndefinedTypeError(defined_type.position.clone(), format!("Missing type {}", defined_type.name.clone())))
-                }
-            },
+            }
             parsed_model::ScalarType::BuiltinType(builtin_type) => Ok(ScalarType::BuiltinType(builtin_type.clone())),
         }
     }
 
-    fn from_validated(err: &mut ErrorCollector, parsed: &parsed_model::ScalarType, schema: &Rc<Schema>) -> Result<Self, Error> {
+    fn from_validated(
+        err: &mut ErrorCollector,
+        parsed: &parsed_model::ScalarType,
+        schema: &Rc<Schema>,
+    ) -> Result<Self, Error> {
         match parsed {
             parsed_model::ScalarType::DefinedType(defined_type) => {
                 if let Some(def) = schema.defined_types.get(&defined_type.name) {
                     Ok(match def {
-                        TypeDefinition::Scalar(content) =>ScalarType::DefinedType(DefinedType::Scalar(content.parsed.name.clone())),
-                        TypeDefinition::Object(content) =>ScalarType::DefinedType(DefinedType::Object(content.name.clone())),
-                        TypeDefinition::Interface(content) =>ScalarType::DefinedType(DefinedType::Interface(content.parsed.name.clone())),
-                        TypeDefinition::Union(content) =>ScalarType::DefinedType(DefinedType::Union(content.parsed.name.clone())),
-                        TypeDefinition::Enum(content) => ScalarType::DefinedType(DefinedType::Enum(content.parsed.name.clone())),
-                        TypeDefinition::InputObject(content) =>ScalarType::DefinedType(DefinedType::InputObject(content.name.clone())),
+                        TypeDefinition::Scalar(content) => {
+                            ScalarType::DefinedType(DefinedType::Scalar(content.parsed.name.clone()))
+                        }
+                        TypeDefinition::Object(content) => {
+                            ScalarType::DefinedType(DefinedType::Object(content.name.clone()))
+                        }
+                        TypeDefinition::Interface(content) => {
+                            ScalarType::DefinedType(DefinedType::Interface(content.parsed.name.clone()))
+                        }
+                        TypeDefinition::Union(content) => {
+                            ScalarType::DefinedType(DefinedType::Union(content.parsed.name.clone()))
+                        }
+                        TypeDefinition::Enum(content) => {
+                            ScalarType::DefinedType(DefinedType::Enum(content.parsed.name.clone()))
+                        }
+                        TypeDefinition::InputObject(content) => {
+                            ScalarType::DefinedType(DefinedType::InputObject(content.name.clone()))
+                        }
                     })
+                } else {
+                    err.fail(BuildError::UndefinedTypeError(
+                        defined_type.position.clone(),
+                        format!("Missing type {}", defined_type.name.clone()),
+                    ))
                 }
-                else {
-                    err.fail(BuildError::UndefinedTypeError(defined_type.position.clone(), format!("Missing type {}", defined_type.name.clone())))
-                }
-            },
+            }
             parsed_model::ScalarType::BuiltinType(builtin_type) => Ok(ScalarType::BuiltinType(builtin_type.clone())),
         }
     }
@@ -1095,55 +1189,62 @@ impl Isomorphic for Type {
             Type::Scalar(scalar_type) => {
                 if let Type::Scalar(other_type) = other {
                     scalar_type.is_isomorphic(other_type)
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
             Type::Required(wrapped) => {
                 if let Type::Required(other_type) = other {
                     wrapped.is_isomorphic(other_type)
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
             Type::Array(wrapped) => {
                 if let Type::Array(other_type) = other {
                     wrapped.is_isomorphic(other_type)
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
         }
     }
 }
 
 impl Type {
-    fn new(err: &mut ErrorCollector, parsed: &parsed_model::Type, schema: &Rc<parsed_model::Schema>,) -> Result<Self, Error> {
-       Ok( match parsed {
+    fn new(
+        err: &mut ErrorCollector,
+        parsed: &parsed_model::Type,
+        schema: &Rc<parsed_model::Schema>,
+    ) -> Result<Self, Error> {
+        Ok(match parsed {
             parsed_model::Type::Scalar(scalar_type) => Type::Scalar(ScalarType::new(err, scalar_type, schema)?),
             parsed_model::Type::Required(wrapped) => Type::Required(Box::new(Type::new(err, wrapped, schema)?)),
             parsed_model::Type::Array(wrapped) => Type::Array(Box::new(Type::new(err, wrapped, schema)?)),
         })
     }
 
-    fn from_validated(err: &mut ErrorCollector, parsed: &parsed_model::Type, schema: &Rc<Schema>) -> Result<Self, Error> {
-        Ok( match parsed {
-             parsed_model::Type::Scalar(scalar_type) => Type::Scalar(ScalarType::from_validated(err, scalar_type, schema)?),
-             parsed_model::Type::Required(wrapped) => Type::Required(Box::new(Type::from_validated(err, wrapped, schema)?)),
-             parsed_model::Type::Array(wrapped) => Type::Array(Box::new(Type::from_validated(err, wrapped, schema)?)),
-         })
-     }
+    fn from_validated(
+        err: &mut ErrorCollector,
+        parsed: &parsed_model::Type,
+        schema: &Rc<Schema>,
+    ) -> Result<Self, Error> {
+        Ok(match parsed {
+            parsed_model::Type::Scalar(scalar_type) => {
+                Type::Scalar(ScalarType::from_validated(err, scalar_type, schema)?)
+            }
+            parsed_model::Type::Required(wrapped) => {
+                Type::Required(Box::new(Type::from_validated(err, wrapped, schema)?))
+            }
+            parsed_model::Type::Array(wrapped) => Type::Array(Box::new(Type::from_validated(err, wrapped, schema)?)),
+        })
+    }
 
     fn graphql_name(&self) -> String {
         match self {
-            Type::Scalar(scalar_type) => {
-                match scalar_type {
-                    ScalarType::DefinedType(defined_type) => defined_type.graphql_type().to_string(),
-                    ScalarType::BuiltinType(builtin_type) => builtin_type.name().to_string(),
-                }
+            Type::Scalar(scalar_type) => match scalar_type {
+                ScalarType::DefinedType(defined_type) => defined_type.graphql_type().to_string(),
+                ScalarType::BuiltinType(builtin_type) => builtin_type.name().to_string(),
             },
             Type::Required(wrapped) => format!("{}!", wrapped.graphql_name()),
             Type::Array(wrapped) => format!("[{}]", wrapped.graphql_name()),
@@ -1157,17 +1258,15 @@ impl Type {
             Type::Array(wrapped) => wrapped.get_scalar(),
         }
     }
-    
+
     // if nonnull then the type is coerced to be nonnull at all levels
     pub fn rust_type(&self, optionality: Optionality) -> String {
         // Will never be called with Required variant.
         fn do_rust_type(input: &Type, optionality: Optionality) -> String {
             match input {
-                Type::Scalar(wrapped) => {
-                    match wrapped {
-                        ScalarType::DefinedType(defined_type) => defined_type.rust_type(),
-                        ScalarType::BuiltinType(builtin_type) => builtin_type.rust_type().to_string(),
-                    }
+                Type::Scalar(wrapped) => match wrapped {
+                    ScalarType::DefinedType(defined_type) => defined_type.rust_type(),
+                    ScalarType::BuiltinType(builtin_type) => builtin_type.rust_type().to_string(),
                 },
                 Type::Required(_) => unreachable!(),
                 Type::Array(wrapped) => format!("Vec<{}>", wrapped.rust_type(optionality)),
@@ -1176,24 +1275,21 @@ impl Type {
 
         let (new_optionality, new_type) = if let Type::Required(wrapped) = self {
             (optionality.required_by_default(), &**wrapped)
-        }
-        else {
+        } else {
             (optionality.optional_by_default(), self)
         };
 
         if let Optionality::Optional = new_optionality {
             format!("Option<{}>", do_rust_type(new_type, optionality.nested()))
-        }
-        else {
+        } else {
             do_rust_type(new_type, optionality.nested())
         }
     }
-    
+
     pub fn is_optional(&self) -> bool {
         if let Type::Required(_) = self {
             false
-        }
-        else {
+        } else {
             true
         }
     }
@@ -1208,7 +1304,6 @@ impl Display for Type {
         }
     }
 }
-
 
 pub enum TypeDefinition {
     Scalar(Rc<Scalar>),
@@ -1295,14 +1390,17 @@ impl Scalar {
         }
         writeln!(out, "}}")
     }
-    
-    fn new(registry: &mut NameRegistry, parsed: &Rc<parsed_model::Scalar>, types: &IndexMap<String, String>) -> TypeDefinition {
+
+    fn new(
+        registry: &mut NameRegistry,
+        parsed: &Rc<parsed_model::Scalar>,
+        types: &IndexMap<String, String>,
+    ) -> TypeDefinition {
         println!("&*parsed.name={}", &*parsed.name);
-        let rust_name =  registry.intern(to_pascal_case(&parsed.name));
+        let rust_name = registry.intern(to_pascal_case(&parsed.name));
         let rust_type = if let Some(fqn) = types.get(&*parsed.name) {
             registry.intern_str(fqn)
-        }
-        else {
+        } else {
             registry.intern_str("serde_json::Value")
         };
 
@@ -1312,7 +1410,7 @@ impl Scalar {
             rust_type,
         }))
     }
-    
+
     fn generate(&self, out: &mut Output<'_>) -> Result<(), Error> {
         writeln!(out, "type {} = {};", &self.rust_name, &self.rust_type)?;
         writeln!(out, "")?;
@@ -1335,21 +1433,26 @@ impl Context for Object {
 }
 
 impl Object {
-    fn new(err: &mut ErrorCollector, registry: &mut NameRegistry, parsed: &Rc<parsed_model::Object>, schema: &Rc<parsed_model::Schema>,) -> Result<Rc<Self>, Error> {
+    fn new(
+        err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        parsed: &Rc<parsed_model::Object>,
+        schema: &Rc<parsed_model::Schema>,
+    ) -> Result<Rc<Self>, Error> {
         let mut fully_implements = Vec::new();
 
         for interface_name in &parsed.implements {
             if let Some(interface) = schema.get_interface(err, &parsed.position, &interface_name) {
                 let mut ok = true;
-                    for field_name in interface.fields.keys() {
-                        if ! parsed.fields.contains_key(field_name) {
-                            ok = false;
-                            break;
-                        }
+                for field_name in interface.fields.keys() {
+                    if !parsed.fields.contains_key(field_name) {
+                        ok = false;
+                        break;
                     }
-                    if ok {
-                        fully_implements.push(interface_name.clone());
-                    }
+                }
+                if ok {
+                    fully_implements.push(interface_name.clone());
+                }
             }
         }
 
@@ -1362,14 +1465,13 @@ impl Object {
         }
 
         err.ok(Rc::new(Object {
-                name: parsed.name.clone(),
-                rust_name: registry.intern(to_pascal_case(&parsed.name)),
-                fully_implements,
-                fields: builder.build(),
-                is_input: parsed.is_input,
-            }))
+            name: parsed.name.clone(),
+            rust_name: registry.intern(to_pascal_case(&parsed.name)),
+            fully_implements,
+            fields: builder.build(),
+            is_input: parsed.is_input,
+        }))
     }
-    
 
     pub fn print(&self, out: &mut Output) -> std::io::Result<()> {
         writeln!(out, "validated_model::Object {{")?;
@@ -1398,16 +1500,23 @@ impl Object {
         }
         writeln!(out, "}}")
     }
-    
+
     fn generate(&self, out: &mut Output<'_>) -> Result<(), Error> {
         generate_struct(out, &self.name, &self.rust_name, self, self.is_input)
     }
 }
 
-fn generate_struct(out: &mut Output<'_>, name: &Name, rust_name: &Name, context: &dyn Context, is_input: bool) -> Result<(), Error> {
-   
-
-    writeln!(out, "#[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty, Clone)]")?;
+fn generate_struct(
+    out: &mut Output<'_>,
+    name: &Name,
+    rust_name: &Name,
+    context: &dyn Context,
+    is_input: bool,
+) -> Result<(), Error> {
+    writeln!(
+        out,
+        "#[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty, Clone)]"
+    )?;
     if name != rust_name {
         writeln!(out, "#[serde(rename = \"{}\")]", name)?;
     }
@@ -1415,7 +1524,12 @@ fn generate_struct(out: &mut Output<'_>, name: &Name, rust_name: &Name, context:
 
     for field in context.fields().values() {
         writeln!(out, "    #[serde(rename = \"{}\")]", &field.parsed.name)?;
-        writeln!(out, "    pub {}_: {},", to_snake_case(&field.parsed.name), field.ty.rust_type(Optionality::Default))?;
+        writeln!(
+            out,
+            "    pub {}_: {},",
+            to_snake_case(&field.parsed.name),
+            field.ty.rust_type(Optionality::Default)
+        )?;
     }
 
     writeln!(out, "}}")?;
@@ -1434,7 +1548,7 @@ fn generate_struct(out: &mut Output<'_>, name: &Name, rust_name: &Name, context:
             writeln!(out, "    }}")?;
             writeln!(out, "}}")?;
         }
-    
+
         writeln!(out, "}}")?;
         writeln!(out, "")?;
 
@@ -1442,9 +1556,14 @@ fn generate_struct(out: &mut Output<'_>, name: &Name, rust_name: &Name, context:
         writeln!(out, "pub struct {}Builder {{", rust_name)?;
 
         for field in context.fields().values() {
-            writeln!(out, "    {}_: {},", to_snake_case(&field.parsed.name), field.ty.rust_type(Optionality::Default))?;
+            writeln!(
+                out,
+                "    {}_: {},",
+                to_snake_case(&field.parsed.name),
+                field.ty.rust_type(Optionality::Default)
+            )?;
         }
-    
+
         writeln!(out, "}}")?;
         writeln!(out, "")?;
 
@@ -1453,7 +1572,12 @@ fn generate_struct(out: &mut Output<'_>, name: &Name, rust_name: &Name, context:
             let mut out = out.indent();
 
             for field in context.fields().values() {
-                writeln!(out, "pub fn with_{}(mut self, value: {}) -> Self {{", to_snake_case(&field.parsed.name), field.ty.rust_type(Optionality::Required))?;
+                writeln!(
+                    out,
+                    "pub fn with_{}(mut self, value: {}) -> Self {{",
+                    to_snake_case(&field.parsed.name),
+                    field.ty.rust_type(Optionality::Required)
+                )?;
                 {
                     let mut out = out.indent();
 
@@ -1463,14 +1587,22 @@ fn generate_struct(out: &mut Output<'_>, name: &Name, rust_name: &Name, context:
                 writeln!(out, "}}")?;
                 writeln!(out, "")?;
             }
-            writeln!(out, "pub fn build(self) -> Result<{}, bruce_graphql::error::Error> {{", rust_name)?;
+            writeln!(
+                out,
+                "pub fn build(self) -> Result<{}, bruce_graphql::error::Error> {{",
+                rust_name
+            )?;
             {
                 let mut out = out.indent();
 
                 for field in context.fields().values() {
                     if let Type::Required(_) = field.ty {
                         writeln!(out, "if let None = self.{}_ {{", to_snake_case(&field.parsed.name))?;
-                        writeln!(out, "    return Err(bruce_graphql::error::Error::MissingRequiredValueError(\"{}\"))", field.parsed.name)?;
+                        writeln!(
+                            out,
+                            "    return Err(bruce_graphql::error::Error::MissingRequiredValueError(\"{}\"))",
+                            field.parsed.name
+                        )?;
                         writeln!(out, "}}")?;
                     }
                 }
@@ -1481,10 +1613,19 @@ fn generate_struct(out: &mut Output<'_>, name: &Name, rust_name: &Name, context:
 
                     for field in context.fields().values() {
                         if let Type::Required(_) = field.ty {
-                            writeln!(out, "{}_: self.{}_.unwrap(),", to_snake_case(&field.parsed.name), to_snake_case(&field.parsed.name))?;
-                        }
-                        else {
-                            writeln!(out, "{}_: self.{}_,", to_snake_case(&field.parsed.name), to_snake_case(&field.parsed.name))?;
+                            writeln!(
+                                out,
+                                "{}_: self.{}_.unwrap(),",
+                                to_snake_case(&field.parsed.name),
+                                to_snake_case(&field.parsed.name)
+                            )?;
+                        } else {
+                            writeln!(
+                                out,
+                                "{}_: self.{}_,",
+                                to_snake_case(&field.parsed.name),
+                                to_snake_case(&field.parsed.name)
+                            )?;
                         }
                     }
                     writeln!(out, "}})")?;
@@ -1517,7 +1658,7 @@ impl Interface {
     pub fn print(&self, out: &mut Output) -> std::io::Result<()> {
         writeln!(out, "validated_model::Interface {{")?;
         self.parsed.print(out)?;
-        
+
         {
             let mut out = out.indent();
 
@@ -1534,10 +1675,14 @@ impl Interface {
         writeln!(out, "}}")
     }
 
-    fn new(err: &mut ErrorCollector, registry: &mut NameRegistry, parsed: &Rc<parsed_model::Interface>, schema: &Rc<parsed_model::Schema>,) -> Result<TypeDefinition, Error> {
+    fn new(
+        err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        parsed: &Rc<parsed_model::Interface>,
+        schema: &Rc<parsed_model::Schema>,
+    ) -> Result<TypeDefinition, Error> {
         let mut implemented_by = Vec::new();
 
-        
         for defined_type in schema.named_types.values() {
             if let parsed_model::TypeDefinition::Object(object_model) = defined_type {
                 for implements in &object_model.implements {
@@ -1547,7 +1692,7 @@ impl Interface {
                     }
                 }
             }
-        } 
+        }
 
         let mut builder = FieldMap::builder();
 
@@ -1558,19 +1703,18 @@ impl Interface {
         }
 
         err.ok(TypeDefinition::Interface(Rc::new(Interface {
-                parsed: parsed.clone(),
-                rust_name: registry.intern(to_pascal_case(&parsed.name)),
-                implemented_by,
-                fields: builder.build(),
-            })))
+            parsed: parsed.clone(),
+            rust_name: registry.intern(to_pascal_case(&parsed.name)),
+            implemented_by,
+            fields: builder.build(),
+        })))
     }
-    
+
     fn generate(&self, out: &mut Output<'_>) -> Result<(), Error> {
         generate_struct(out, &self.parsed.name, &self.rust_name, self, false)?;
         Ok(())
     }
 }
-
 
 pub struct Union {
     pub parsed: Rc<parsed_model::Union>,
@@ -1585,7 +1729,11 @@ impl Context for Union {
 }
 
 impl Union {
-    fn new(err: &mut ErrorCollector, registry: &mut NameRegistry, parsed: &Rc<parsed_model::Union>) -> Result<TypeDefinition, Error> {
+    fn new(
+        err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        parsed: &Rc<parsed_model::Union>,
+    ) -> Result<TypeDefinition, Error> {
         let builder = FieldMap::builder();
         let err = err.child();
 
@@ -1634,7 +1782,6 @@ impl Union {
     }
 }
 
-
 pub struct Enum {
     pub parsed: Rc<parsed_model::Enum>,
     pub rust_name: Name,
@@ -1657,9 +1804,12 @@ impl Enum {
             rust_name: registry.intern(to_pascal_case(&parsed.name)),
         }))
     }
-    
+
     fn generate(&self, out: &mut Output<'_>) -> Result<(), Error> {
-        writeln!(out, "#[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty, Eq, PartialEq, Clone)]")?;
+        writeln!(
+            out,
+            "#[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty, Eq, PartialEq, Clone)]"
+        )?;
         if self.parsed.name != self.rust_name {
             writeln!(out, "#[serde(rename = \"{}\")]", self.parsed.name)?;
         }
@@ -1675,8 +1825,6 @@ impl Enum {
     }
 }
 
-
-
 #[derive(Debug, Clone)]
 pub struct Field {
     pub parsed: Rc<parsed_model::Field>,
@@ -1689,7 +1837,7 @@ impl Isomorphic for Field {
     }
 }
 
-impl Field{
+impl Field {
     pub fn print(&self, out: &mut Output) -> std::io::Result<()> {
         writeln!(out, "Field {{")?;
         {
@@ -1701,8 +1849,12 @@ impl Field{
         }
         writeln!(out, "}}")
     }
-    
-    fn new(err: &mut ErrorCollector, parsed: &Rc<parsed_model::Field>, schema: &Rc<parsed_model::Schema>) -> Result<Rc<Field>, Error> {
+
+    fn new(
+        err: &mut ErrorCollector,
+        parsed: &Rc<parsed_model::Field>,
+        schema: &Rc<parsed_model::Schema>,
+    ) -> Result<Rc<Field>, Error> {
         Ok(Rc::new(Field {
             parsed: parsed.clone(),
             ty: Type::new(err, &parsed.ty, schema)?,
@@ -1712,15 +1864,18 @@ impl Field{
     pub fn graphql_name(&self) -> String {
         self.ty.graphql_name()
     }
-    
-    fn from_variable(err: &mut ErrorCollector, parsed: &Rc<parsed_model::Field>, schema: &Rc<Schema>) -> Result<Rc<Self>, Error> {
+
+    fn from_variable(
+        err: &mut ErrorCollector,
+        parsed: &Rc<parsed_model::Field>,
+        schema: &Rc<Schema>,
+    ) -> Result<Rc<Self>, Error> {
         Ok(Rc::new(Field {
             parsed: parsed.clone(),
             ty: Type::from_validated(err, &parsed.ty, schema)?,
         }))
     }
 }
-
 
 pub struct Schema {
     pub defined_types: IndexMap<Name, TypeDefinition>,
@@ -1769,17 +1924,21 @@ impl Schema {
 
     pub fn get_object_or_interface_fields(&self, name: &Name) -> Result<&FieldMap, Error> {
         if let Some(type_definition) = &self.defined_types.get(name) {
-            //if let TypeDefinition::Object(object) = 
+            //if let TypeDefinition::Object(object) =
             match type_definition {
                 TypeDefinition::Object(object) => Ok(&object.fields),
                 TypeDefinition::Interface(interface) => Ok(&interface.fields),
-                _ => {
-                    Err(Error::BuildFailed(format!("Expected Object or Interface for \"{}\" but found {}", name, type_definition.type_name())))
-                },
-            } 
-        }
-        else {
-            Err(Error::BuildFailed(format!("Failed to find Object or Interface \"{}\"", name)))
+                _ => Err(Error::BuildFailed(format!(
+                    "Expected Object or Interface for \"{}\" but found {}",
+                    name,
+                    type_definition.type_name()
+                ))),
+            }
+        } else {
+            Err(Error::BuildFailed(format!(
+                "Failed to find Object or Interface \"{}\"",
+                name
+            )))
         }
     }
 
@@ -1787,12 +1946,14 @@ impl Schema {
         if let Some(type_definition) = &self.defined_types.get(name) {
             if let TypeDefinition::Object(object) = type_definition {
                 Ok(object)
+            } else {
+                Err(Error::BuildFailed(format!(
+                    "Expected Object for \"{}\" but found {}",
+                    name,
+                    type_definition.type_name()
+                )))
             }
-            else {
-                Err(Error::BuildFailed(format!("Expected Object for \"{}\" but found {}", name, type_definition.type_name())))
-            }
-        }
-        else {
+        } else {
             Err(Error::BuildFailed(format!("Failed to find Object \"{}\"", name)))
         }
     }
@@ -1801,30 +1962,34 @@ impl Schema {
         if let Some(type_definition) = &self.defined_types.get(name) {
             if let TypeDefinition::Interface(interface) = type_definition {
                 Ok(interface)
+            } else {
+                Err(Error::BuildFailed(format!(
+                    "Expected Interface for \"{}\" but found {}",
+                    name,
+                    type_definition.type_name()
+                )))
             }
-            else {
-                Err(Error::BuildFailed(format!("Expected Interface for \"{}\" but found {}", name, type_definition.type_name())))
-            }
-        }
-        else {
+        } else {
             Err(Error::BuildFailed(format!("Failed to find Interface \"{}\"", name)))
         }
     }
-    
+
     fn get_union(&self, name: &Name) -> Result<&Rc<Union>, Error> {
         if let Some(type_definition) = &self.defined_types.get(name) {
             if let TypeDefinition::Union(union) = type_definition {
                 Ok(union)
+            } else {
+                Err(Error::BuildFailed(format!(
+                    "Expected Union for \"{}\" but found {}",
+                    name,
+                    type_definition.type_name()
+                )))
             }
-            else {
-                Err(Error::BuildFailed(format!("Expected Union for \"{}\" but found {}", name, type_definition.type_name())))
-            }
-        }
-        else {
+        } else {
             Err(Error::BuildFailed(format!("Failed to find Union \"{}\"", name)))
         }
     }
-    
+
     // fn get_enum(&self, name: &Name) -> Result<&Rc<Enum>, Error> {
     //     if let Some(type_definition) = &self.defined_types.get(name) {
     //         if let TypeDefinition::Enum(type_definition) = type_definition {
@@ -1843,102 +2008,145 @@ impl Schema {
         if let Some(type_definition) = &self.defined_types.get(name) {
             if let TypeDefinition::InputObject(object) = type_definition {
                 Ok(object)
+            } else {
+                Err(Error::BuildFailed(format!(
+                    "Expected InputObject for \"{}\" but found {}",
+                    name,
+                    type_definition.type_name()
+                )))
             }
-            else {
-                Err(Error::BuildFailed(format!("Expected InputObject for \"{}\" but found {}", name, type_definition.type_name())))
-            }
-        }
-        else {
+        } else {
             Err(Error::BuildFailed(format!("Failed to find InputObject \"{}\"", name)))
         }
     }
 
-    fn new_get_object(out: &mut ErrorCollector, name: &Option<Name>, position: &Pos, defined_types: &IndexMap<Name, TypeDefinition>) -> Option<Name> {
+    fn new_get_object(
+        out: &mut ErrorCollector,
+        name: &Option<Name>,
+        position: &Pos,
+        defined_types: &IndexMap<Name, TypeDefinition>,
+    ) -> Option<Name> {
         if let Some(name) = name {
             if let Some(type_definition) = &defined_types.get(name) {
                 if let TypeDefinition::Object(_) = type_definition {
                     Some(name.clone())
-                }
-                else {
-                    out.error(BuildError::TypeMismatchError(position.clone(), format!("Expected object \"{}\" but found {}", name, type_definition.type_name())));
+                } else {
+                    out.error(BuildError::TypeMismatchError(
+                        position.clone(),
+                        format!("Expected object \"{}\" but found {}", name, type_definition.type_name()),
+                    ));
                     None
                 }
-            }
-            else {
-                out.error(BuildError::MissingObjectError(position.clone(), format!("Missing schema reference \"{}\"", name)));
+            } else {
+                out.error(BuildError::MissingObjectError(
+                    position.clone(),
+                    format!("Missing schema reference \"{}\"", name),
+                ));
                 None
             }
-        }
-        else {
+        } else {
             None
         }
     }
 
-    fn new_get_default_object(out: &mut ErrorCollector, name: Name, defined_types: &IndexMap<Name, TypeDefinition>, missing_error: Option<BuildError>) -> Option<Name> {
+    fn new_get_default_object(
+        out: &mut ErrorCollector,
+        name: Name,
+        defined_types: &IndexMap<Name, TypeDefinition>,
+        missing_error: Option<BuildError>,
+    ) -> Option<Name> {
         if let Some(type_definition) = &defined_types.get(&name) {
             if let TypeDefinition::Object(_) = type_definition {
                 Some(name)
-            }
-            else {
-                out.error(BuildError::TypeMismatchError(Pos { line: 0, column: 0 }, format!("Expected object \"{}\" but found {}", name, type_definition.type_name())));
+            } else {
+                out.error(BuildError::TypeMismatchError(
+                    Pos { line: 0, column: 0 },
+                    format!("Expected object \"{}\" but found {}", name, type_definition.type_name()),
+                ));
                 None
             }
-        }
-        else {
-            if let Some(error) = missing_error { 
+        } else {
+            if let Some(error) = missing_error {
                 out.error(error);
             }
             None
         }
     }
 
-    pub fn new(err: &mut ErrorCollector, parsed: &Rc<parsed_model::Schema>, registry: &mut NameRegistry, types: &IndexMap<String, String>) -> Result<Rc<Self>, Error> {
-
+    pub fn new(
+        err: &mut ErrorCollector,
+        parsed: &Rc<parsed_model::Schema>,
+        registry: &mut NameRegistry,
+        types: &IndexMap<String, String>,
+    ) -> Result<Rc<Self>, Error> {
         let mut defined_types: IndexMap<Name, TypeDefinition> = IndexMap::new();
 
         for parsed_type in parsed.named_types.values() {
             let defined_type = match parsed_type {
                 parsed_model::TypeDefinition::Scalar(type_def) => Scalar::new(registry, &type_def, types),
-                parsed_model::TypeDefinition::Object(object) => TypeDefinition::Object(Object::new(err, registry, &object, &parsed)?),
-                parsed_model::TypeDefinition::Interface(interface) => Interface::new(err, registry, interface, &parsed)?,
+                parsed_model::TypeDefinition::Object(object) => {
+                    TypeDefinition::Object(Object::new(err, registry, &object, &parsed)?)
+                }
+                parsed_model::TypeDefinition::Interface(interface) => {
+                    Interface::new(err, registry, interface, &parsed)?
+                }
                 parsed_model::TypeDefinition::Union(union) => Union::new(err, registry, union)?,
                 parsed_model::TypeDefinition::Enum(enum_definition) => Enum::new(registry, enum_definition),
-                parsed_model::TypeDefinition::InputObject(object) => TypeDefinition::InputObject(Object::new(err, registry, &object, &parsed)?),
+                parsed_model::TypeDefinition::InputObject(object) => {
+                    TypeDefinition::InputObject(Object::new(err, registry, &object, &parsed)?)
+                }
             };
             defined_types.insert(parsed_type.name().clone(), defined_type);
         }
 
         let mutation = if let Some(schema_definition) = &parsed.schema_definition {
-            Self::new_get_object(err, &schema_definition.mutation, &schema_definition.position, &defined_types) 
-        }
-        else {
+            Self::new_get_object(
+                err,
+                &schema_definition.mutation,
+                &schema_definition.position,
+                &defined_types,
+            )
+        } else {
             Self::new_get_default_object(err, registry.intern_str("Mutation"), &defined_types, None)
         };
-        
+
         let subscription = if let Some(schema_definition) = &parsed.schema_definition {
-            Self::new_get_object(err, &schema_definition.subscription, &schema_definition.position, &defined_types)
-        }
-        else {
+            Self::new_get_object(
+                err,
+                &schema_definition.subscription,
+                &schema_definition.position,
+                &defined_types,
+            )
+        } else {
             Self::new_get_default_object(err, registry.intern_str("Subscription"), &defined_types, None)
         };
 
         let query = if let Some(schema_definition) = &parsed.schema_definition {
-            Self::new_get_object(err, &schema_definition.query, &schema_definition.position, &defined_types)
-        }
-        else {
-            Self::new_get_default_object(err, registry.intern_str("Query"), &defined_types, Some(BuildError::NoQueryDefinition))
+            Self::new_get_object(
+                err,
+                &schema_definition.query,
+                &schema_definition.position,
+                &defined_types,
+            )
+        } else {
+            Self::new_get_default_object(
+                err,
+                registry.intern_str("Query"),
+                &defined_types,
+                Some(BuildError::NoQueryDefinition),
+            )
         };
 
         err.ok(Rc::new(Schema {
-                defined_types,
-                query: query.ok_or(Error::BuildFailed(format!("Failed to find previously validated query")))?,
-                mutation,
-                subscription,
-                __typename: Rc::new(Field {
-                    parsed: parsed.__typename.clone(),
-                    ty: Type::Scalar(ScalarType::BuiltinType(BuiltinType::String)),
-                }),
-            }))
+            defined_types,
+            query: query.ok_or(Error::BuildFailed(format!("Failed to find previously validated query")))?,
+            mutation,
+            subscription,
+            __typename: Rc::new(Field {
+                parsed: parsed.__typename.clone(),
+                ty: Type::Scalar(ScalarType::BuiltinType(BuiltinType::String)),
+            }),
+        }))
     }
 }
 
@@ -1953,8 +2161,13 @@ pub struct SelectionQueryField {
 }
 
 impl SelectionQueryField {
-    pub fn new(selection_field: &Rc<parsed_model::SelectionField>, registry: &mut NameRegistry, schema: &Rc<Schema>, fields: &FieldMap) -> Result<SelectionQuery, Error> {
-println!("SelectionQueryField {}", selection_field.name);
+    pub fn new(
+        selection_field: &Rc<parsed_model::SelectionField>,
+        registry: &mut NameRegistry,
+        schema: &Rc<Schema>,
+        fields: &FieldMap,
+    ) -> Result<SelectionQuery, Error> {
+        println!("SelectionQueryField {}", selection_field.name);
 
         Ok(SelectionQuery::Field(Rc::new(SelectionQueryField {
             name: selection_field.name.clone(),
@@ -1962,7 +2175,12 @@ println!("SelectionQueryField {}", selection_field.name);
             position: selection_field.position.clone(),
             force_nonnull: selection_field.force_nonnull,
             arguments: selection_field.arguments.clone(),
-            selections: Rc::new(SelectionQueryList::new(&selection_field.selections, registry, schema, fields)?),
+            selections: Rc::new(SelectionQueryList::new(
+                &selection_field.selections,
+                registry,
+                schema,
+                fields,
+            )?),
         })))
     }
 
@@ -1989,30 +2207,33 @@ println!("SelectionQueryField {}", selection_field.name);
         writeln!(out, "}}")
     }
 
-        pub fn generate_query(&self, out: &mut Output, variables: &crate::validated_model::FieldMap, fragments: &mut IndexSet<Name>) -> Result<(), Error> {
-            if let Some(alias) = &self.alias {
-                writeln!(out, "buf.push_str(\"{}: {}\\n\");", alias, &self.name)?;
-            }
-            else {
-                writeln!(out, "buf.push_str(\"{}\\n\");", &self.name)?;
-            }
-    
-            if ! self.arguments.is_empty() {
-                writeln!(out, "buf.push('(');")?;
-                {
-                    let mut out = out.indent();
-    
-                
-                    for argument in &self.arguments {
-                        argument.generate_query(&mut out, variables)?;
-                    }
-                }
-                writeln!(out, "buf.push(')');")?;
-            }
-    
-            self.selections.generate_query(out, variables, fragments)?;
-            Ok(())
+    pub fn generate_query(
+        &self,
+        out: &mut Output,
+        variables: &crate::validated_model::FieldMap,
+        fragments: &mut IndexSet<Name>,
+    ) -> Result<(), Error> {
+        if let Some(alias) = &self.alias {
+            writeln!(out, "buf.push_str(\"{}: {}\\n\");", alias, &self.name)?;
+        } else {
+            writeln!(out, "buf.push_str(\"{}\\n\");", &self.name)?;
         }
+
+        if !self.arguments.is_empty() {
+            writeln!(out, "buf.push('(');")?;
+            {
+                let mut out = out.indent();
+
+                for argument in &self.arguments {
+                    argument.generate_query(&mut out, variables)?;
+                }
+            }
+            writeln!(out, "buf.push(')');")?;
+        }
+
+        self.selections.generate_query(out, variables, fragments)?;
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -2047,7 +2268,6 @@ impl SelectionQueryFragmentSpread {
     }
 }
 
-
 #[derive(Debug)]
 pub struct SelectionQueryInlineFragmentSpread {
     pub position: Pos,
@@ -2055,14 +2275,21 @@ pub struct SelectionQueryInlineFragmentSpread {
     pub type_condition: Option<Name>,
 }
 
-impl SelectionQueryInlineFragmentSpread{
-    pub fn new(parsed: &parsed_model::InlineFragmentSpread, registry: &mut NameRegistry, schema: &Rc<Schema>, fields: &FieldMap) -> Result<SelectionQuery, Error> {
+impl SelectionQueryInlineFragmentSpread {
+    pub fn new(
+        parsed: &parsed_model::InlineFragmentSpread,
+        registry: &mut NameRegistry,
+        schema: &Rc<Schema>,
+        fields: &FieldMap,
+    ) -> Result<SelectionQuery, Error> {
         println!("SelectionQueryInlineFragmentSpread {:?}", parsed.type_condition);
-        Ok(SelectionQuery::InlineFragment(Rc::new(SelectionQueryInlineFragmentSpread {
-            position: parsed.position.clone(),
-            selections: Rc::new(SelectionQueryList::new(&parsed.selections, registry, schema, fields)?),
-            type_condition: parsed.type_condition.clone(),
-        })))
+        Ok(SelectionQuery::InlineFragment(Rc::new(
+            SelectionQueryInlineFragmentSpread {
+                position: parsed.position.clone(),
+                selections: Rc::new(SelectionQueryList::new(&parsed.selections, registry, schema, fields)?),
+                type_condition: parsed.type_condition.clone(),
+            },
+        )))
     }
 
     pub fn print(&self, out: &mut Output) -> std::io::Result<()> {
@@ -2077,17 +2304,20 @@ impl SelectionQueryInlineFragmentSpread{
         writeln!(out, "}}")
     }
 
-    pub fn generate_query(&self, out: &mut Output, variables: &crate::validated_model::FieldMap, fragments: &mut IndexSet<Name>) -> Result<(), Error> {
+    pub fn generate_query(
+        &self,
+        out: &mut Output,
+        variables: &crate::validated_model::FieldMap,
+        fragments: &mut IndexSet<Name>,
+    ) -> Result<(), Error> {
         if let Some(cond) = &self.type_condition {
             writeln!(out, "buf.push_str(\"... on {} {{\\n\");", cond)?;
-        }
-        else {
+        } else {
             writeln!(out, "buf.push_str(\"... {{\\n\");")?;
         }
         {
             let mut out = out.indent();
 
-        
             for selection in &self.selections.selections {
                 selection.generate_query(&mut out, variables, fragments)?;
             }
@@ -2115,12 +2345,18 @@ impl Print for SelectionQuery {
 }
 
 impl SelectionQuery {
-    
-    pub fn generate_query(&self, out: &mut Output, variables: &crate::validated_model::FieldMap, fragments: &mut IndexSet<Name>) -> Result<(), Error> {
+    pub fn generate_query(
+        &self,
+        out: &mut Output,
+        variables: &crate::validated_model::FieldMap,
+        fragments: &mut IndexSet<Name>,
+    ) -> Result<(), Error> {
         match self {
             SelectionQuery::Field(selection_field) => selection_field.generate_query(out, variables, fragments),
             SelectionQuery::FragmentSpread(fragment_spread) => fragment_spread.generate_query(out, fragments),
-            SelectionQuery::InlineFragment(inline_fragment_spread) => inline_fragment_spread.generate_query(out, variables, fragments),
+            SelectionQuery::InlineFragment(inline_fragment_spread) => {
+                inline_fragment_spread.generate_query(out, variables, fragments)
+            }
         }
     }
 }
@@ -2146,7 +2382,12 @@ impl Print for SelectionQueryList {
 }
 
 impl SelectionQueryList {
-    fn new(parsed: &parsed_model::SelectionList, registry: &mut NameRegistry, schema: &Rc<Schema>, fields: &FieldMap) -> Result<Self, Error> {
+    fn new(
+        parsed: &parsed_model::SelectionList,
+        registry: &mut NameRegistry,
+        schema: &Rc<Schema>,
+        fields: &FieldMap,
+    ) -> Result<Self, Error> {
         let mut selections = Vec::new();
         let mut has_typename = false;
         let mut requires_discriminator = false;
@@ -2163,59 +2404,58 @@ impl SelectionQueryList {
                         println!("field={:?}", field);
 
                         match field.ty.get_scalar() {
-                            ScalarType::DefinedType(defined_type) => {
-                                match defined_type {
-                                    DefinedType::Scalar(_) => fields,
-                                    DefinedType::Object(name) => {
-                                        let object = schema.get_object(name)?;
-                                        &object.fields
-                                    },
-                                    DefinedType::Interface(name) => {
-                                        let interface = schema.get_interface(name)?;
-                                        &interface.fields
-                                    }
-                                    DefinedType::Union(name) => {
-                                        let object = schema.get_union(name)?;
-                                        &object.fields
-                                    },
-                                    DefinedType::Enum(_) => fields,
-                                    DefinedType::InputObject(name) => {
-                                        let object = schema.get_input_object(name)?;
-                                        &object.fields
-                                    },
+                            ScalarType::DefinedType(defined_type) => match defined_type {
+                                DefinedType::Scalar(_) => fields,
+                                DefinedType::Object(name) => {
+                                    let object = schema.get_object(name)?;
+                                    &object.fields
+                                }
+                                DefinedType::Interface(name) => {
+                                    let interface = schema.get_interface(name)?;
+                                    &interface.fields
+                                }
+                                DefinedType::Union(name) => {
+                                    let object = schema.get_union(name)?;
+                                    &object.fields
+                                }
+                                DefinedType::Enum(_) => fields,
+                                DefinedType::InputObject(name) => {
+                                    let object = schema.get_input_object(name)?;
+                                    &object.fields
                                 }
                             },
                             ScalarType::BuiltinType(_) => fields,
                         }
-                    }
-                    else {
+                    } else {
                         fields
                     };
                     selections.push(SelectionQueryField::new(selection_field, registry, schema, new_fields)?);
-                },
+                }
                 parsed_model::Selection::FragmentSpread(fragment_spread) => {
                     requires_discriminator = true;
                     selections.push(SelectionQueryFragmentSpread::new(fragment_spread));
-                },
+                }
                 parsed_model::Selection::InlineFragment(inline_fragment_spread) => {
                     requires_discriminator = true;
-                    selections.push(SelectionQueryInlineFragmentSpread::new(inline_fragment_spread, registry, schema, fields)?);
-                },
+                    selections.push(SelectionQueryInlineFragmentSpread::new(
+                        inline_fragment_spread,
+                        registry,
+                        schema,
+                        fields,
+                    )?);
+                }
             }
         }
         println!("has_typename {}", has_typename);
-        if requires_discriminator && ! has_typename {
+        if requires_discriminator && !has_typename {
             selections.push(SelectionQuery::Field(Rc::new(SelectionQueryField {
                 name: registry.intern_str(TYPE_NAME),
                 alias: None,
                 position: Pos { line: 0, column: 0 },
                 force_nonnull: true,
                 arguments: Vec::new(),
-                selections: Rc::new(SelectionQueryList {
-                    selections: Vec::new(),
-                }),
+                selections: Rc::new(SelectionQueryList { selections: Vec::new() }),
             })));
-
 
             // println!("Adding __typename");
             // for sq in &selections {
@@ -2223,16 +2463,20 @@ impl SelectionQueryList {
             // }
             // println!("*******************************************");
         }
-        Ok(Self { selections})
+        Ok(Self { selections })
     }
-    
-    pub fn generate_query(&self, out: &mut Output<'_>, variables: &FieldMap, fragments: &mut IndexSet<Name>) -> Result<(), Error> {
-        if ! &self.selections.is_empty() {
+
+    pub fn generate_query(
+        &self,
+        out: &mut Output<'_>,
+        variables: &FieldMap,
+        fragments: &mut IndexSet<Name>,
+    ) -> Result<(), Error> {
+        if !&self.selections.is_empty() {
             writeln!(out, "buf.push('{{');")?;
             {
                 let mut out = out.indent();
 
-            
                 for selection in &self.selections {
                     selection.generate_query(&mut out, variables, fragments)?;
                 }
@@ -2251,16 +2495,24 @@ pub struct GenericOperation {
 }
 
 impl GenericOperation {
-    fn new(err: &mut ErrorCollector, registry: &mut NameRegistry, selection_manager: &mut NameSpaceManager, parsed: &Rc<parsed_model::GenericOperation>, schema: &Rc<Schema>, fragments: &IndexMap<Name, Rc<parsed_model::FragmentDefinition>>)-> Result<Self, Error> {
-
+    fn new(
+        err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        selection_manager: &mut NameSpaceManager,
+        parsed: &Rc<parsed_model::GenericOperation>,
+        schema: &Rc<Schema>,
+        fragments: &IndexMap<Name, Rc<parsed_model::FragmentDefinition>>,
+    ) -> Result<Self, Error> {
         let mut variable_builder = FieldMap::builder();
-
-       
 
         for (name, variable) in &parsed.variables {
             if let Ok(field) = Field::from_variable(err, variable, schema) {
                 if let Some(existing) = variable_builder.insert(name.clone(), field) {
-                    err.error(BuildError::DuplicateName(existing.parsed.position.clone(), variable.position.clone(), variable.name.to_string()));
+                    err.error(BuildError::DuplicateName(
+                        existing.parsed.position.clone(),
+                        variable.position.clone(),
+                        variable.name.to_string(),
+                    ));
                 }
             }
         }
@@ -2271,49 +2523,114 @@ impl GenericOperation {
         let fields = Self::get_fields(err, &parsed.operation, &parsed.name, &parsed.position, schema)?;
         let name = registry.intern_str("Response");
         // The Response is never treated as a pagination type, even if its fields look like one, because nothing would absorb it.
-        Self::create_selection(err, registry, selection_manager, schema, fragments, 
-            name.clone(), name, &parsed.selections, fields, &None, false)?;
+        Self::create_selection(
+            err,
+            registry,
+            selection_manager,
+            schema,
+            fragments,
+            name.clone(),
+            name,
+            &parsed.selections,
+            fields,
+            &None,
+            false,
+        )?;
 
         err.ok(GenericOperation {
-                parsed: parsed.clone(),
-                variables,
-                // response,
-                selection_query_list: SelectionQueryList::new(&parsed.selections, registry, schema, fields)?
-            })
+            parsed: parsed.clone(),
+            variables,
+            // response,
+            selection_query_list: SelectionQueryList::new(&parsed.selections, registry, schema, fields)?,
+        })
     }
 
-    fn get_fields<'a>(err: &mut ErrorCollector, operation: &OperationType, name: &Name, position: &Pos, schema: &'a Rc<Schema>) -> Result<&'a FieldMap, Error> {
+    fn get_fields<'a>(
+        err: &mut ErrorCollector,
+        operation: &OperationType,
+        name: &Name,
+        position: &Pos,
+        schema: &'a Rc<Schema>,
+    ) -> Result<&'a FieldMap, Error> {
         match operation {
-            OperationType::Query => {
-                Ok(&schema.get_object(&schema.query)?.fields)
-            },
+            OperationType::Query => Ok(&schema.get_object(&schema.query)?.fields),
             OperationType::Mutation => {
                 if let Some(mutation) = &schema.mutation {
                     Ok(&schema.get_object(mutation)?.fields)
+                } else {
+                    err.fail(BuildError::MissingObjectError(
+                        position.clone(),
+                        format!("Mutation {} used but no Mutation root found", name),
+                    ))
                 }
-                else {
-                    err.fail(BuildError::MissingObjectError(position.clone(), format!("Mutation {} used but no Mutation root found", name)))
-                }
-            },
+            }
         }
     }
-    
-    fn create_selection(err: &mut ErrorCollector, registry: &mut NameRegistry, selection_manager: &mut NameSpaceManager, schema: &Rc<Schema>, fragments: &IndexMap<Name, Rc<parsed_model::FragmentDefinition>>,
-        preferred_type_name: Name, graphql_type_name: Name, selections: &Rc<parsed_model::SelectionList>, fields: &FieldMap, implemented_by: &Option<Vec<Name>>, detect_pagination: bool) -> Result<SelectionFieldType, Error>
-    {
-        println!("!! create_selection {} gather dependencies", &graphql_type_name);
-        let mut selection_builder = SelectionBuilder::new(graphql_type_name, preferred_type_name, implemented_by, detect_pagination);
 
-        Self::gather_dependencies(err, registry, selection_manager, selections, schema, fragments, None, fields, &mut selection_builder)?;
+    fn create_selection(
+        err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        selection_manager: &mut NameSpaceManager,
+        schema: &Rc<Schema>,
+        fragments: &IndexMap<Name, Rc<parsed_model::FragmentDefinition>>,
+        preferred_type_name: Name,
+        graphql_type_name: Name,
+        selections: &Rc<parsed_model::SelectionList>,
+        fields: &FieldMap,
+        implemented_by: &Option<Vec<Name>>,
+        detect_pagination: bool,
+    ) -> Result<SelectionFieldType, Error> {
+        println!("!! create_selection {} gather dependencies", &graphql_type_name);
+        let mut selection_builder = SelectionBuilder::new(
+            graphql_type_name,
+            preferred_type_name,
+            implemented_by,
+            detect_pagination,
+        );
+
+        Self::gather_dependencies(
+            err,
+            registry,
+            selection_manager,
+            selections,
+            schema,
+            fragments,
+            None,
+            fields,
+            &mut selection_builder,
+        )?;
 
         Ok(selection_builder.build(selection_manager))
     }
 
-    fn create_selection_field(err: &mut ErrorCollector, registry: &mut NameRegistry, selection_manager: &mut NameSpaceManager, schema: &Rc<Schema>, fragments: &IndexMap<Name, Rc<parsed_model::FragmentDefinition>>,
-        field_name: Name, preferred_type_name: Name, graphql_type_name: Name, selections: &Rc<parsed_model::SelectionList>, force_nonnull: bool, fields: &FieldMap, implemented_by: &Option<Vec<Name>>) -> Result<SelectionField, Error>
-    {
-        let selection_type = Rc::new(Self::create_selection(err, registry, selection_manager, schema, fragments, preferred_type_name, graphql_type_name, selections, fields, implemented_by, true)?);
-   
+    fn create_selection_field(
+        err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        selection_manager: &mut NameSpaceManager,
+        schema: &Rc<Schema>,
+        fragments: &IndexMap<Name, Rc<parsed_model::FragmentDefinition>>,
+        field_name: Name,
+        preferred_type_name: Name,
+        graphql_type_name: Name,
+        selections: &Rc<parsed_model::SelectionList>,
+        force_nonnull: bool,
+        fields: &FieldMap,
+        implemented_by: &Option<Vec<Name>>,
+    ) -> Result<SelectionField, Error> {
+        let selection_type = Rc::new(Self::create_selection(
+            err,
+            registry,
+            selection_manager,
+            schema,
+            fragments,
+            preferred_type_name,
+            graphql_type_name,
+            selections,
+            fields,
+            implemented_by,
+            true,
+        )?);
+
         Ok(SelectionField {
             name: field_name,
             selection_type,
@@ -2321,41 +2638,43 @@ impl GenericOperation {
         })
     }
 
-    fn new_get_dependencies(selection_manager: &mut NameSpaceManager, schema: &Rc<Schema>, fields: &FieldMap) -> Result<(), Error> {
+    fn new_get_dependencies(
+        selection_manager: &mut NameSpaceManager,
+        schema: &Rc<Schema>,
+        fields: &FieldMap,
+    ) -> Result<(), Error> {
         for field in fields.values() {
             match field.ty.get_scalar() {
-                ScalarType::DefinedType(defined_type) => {
-                    match defined_type {
-                        DefinedType::Scalar(name) => {
-                            selection_manager.import_schema(name.clone());
-                        },
-                        DefinedType::Object(name) => {
-                            selection_manager.import_schema(name.clone());
+                ScalarType::DefinedType(defined_type) => match defined_type {
+                    DefinedType::Scalar(name) => {
+                        selection_manager.import_schema(name.clone());
+                    }
+                    DefinedType::Object(name) => {
+                        selection_manager.import_schema(name.clone());
 
-                            let object = schema.get_object(name)?;
+                        let object = schema.get_object(name)?;
 
-                            Self::new_get_dependencies(selection_manager, schema, &object.fields)?
-                        },
-                        DefinedType::Interface(name) => {
-                            selection_manager.import_schema(name.clone());
-                            let object = schema.get_interface(name)?;
+                        Self::new_get_dependencies(selection_manager, schema, &object.fields)?
+                    }
+                    DefinedType::Interface(name) => {
+                        selection_manager.import_schema(name.clone());
+                        let object = schema.get_interface(name)?;
 
-                            Self::new_get_dependencies(selection_manager, schema, &object.fields)?
-                        },
-                        DefinedType::Union(name) => {
-                            selection_manager.import_schema(name.clone());
-                            let object = schema.get_union(name)?;
+                        Self::new_get_dependencies(selection_manager, schema, &object.fields)?
+                    }
+                    DefinedType::Union(name) => {
+                        selection_manager.import_schema(name.clone());
+                        let object = schema.get_union(name)?;
 
-                            Self::new_get_dependencies(selection_manager, schema, &object.fields)?
-                        }
-                        DefinedType::Enum(name) => {
-                            selection_manager.import_schema(name.clone());
-                        },
-                        DefinedType::InputObject(name) => {
-                            selection_manager.import_schema(name.clone());
-                            let object = schema.get_input_object(name)?;
-                            Self::new_get_dependencies(selection_manager, schema, &object.fields)?
-                        },
+                        Self::new_get_dependencies(selection_manager, schema, &object.fields)?
+                    }
+                    DefinedType::Enum(name) => {
+                        selection_manager.import_schema(name.clone());
+                    }
+                    DefinedType::InputObject(name) => {
+                        selection_manager.import_schema(name.clone());
+                        let object = schema.get_input_object(name)?;
+                        Self::new_get_dependencies(selection_manager, schema, &object.fields)?
                     }
                 },
                 ScalarType::BuiltinType(_) => {}
@@ -2363,7 +2682,7 @@ impl GenericOperation {
         }
         Ok(())
     }
-    
+
     fn wrap_type(ty: &Type, selection_field: SelectionField) -> SelectionField {
         SelectionField {
             name: selection_field.name,
@@ -2378,134 +2697,197 @@ impl GenericOperation {
             Type::Array(wrapped) => Rc::new(SelectionFieldType::Array(Self::wrap_type2(wrapped, selection_type))),
             Type::Scalar(_) => selection_type,
         }
-        
     }
-    
-    fn gather_dependencies(err: &mut ErrorCollector, registry: &mut NameRegistry, selection_manager: &mut NameSpaceManager, selections: &Rc<parsed_model::SelectionList>, schema: &Rc<Schema>, fragments: &IndexMap<Name, Rc<parsed_model::FragmentDefinition>>,
-        optional_type_conditions: Option<Vec<Name>>, fields: &FieldMap, selection_builder: &mut SelectionBuilder) -> Result<(), Error>
-    {
+
+    fn gather_dependencies(
+        err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        selection_manager: &mut NameSpaceManager,
+        selections: &Rc<parsed_model::SelectionList>,
+        schema: &Rc<Schema>,
+        fragments: &IndexMap<Name, Rc<parsed_model::FragmentDefinition>>,
+        optional_type_conditions: Option<Vec<Name>>,
+        fields: &FieldMap,
+        selection_builder: &mut SelectionBuilder,
+    ) -> Result<(), Error> {
         println!("!!   gather dependencies variant {:?}", optional_type_conditions);
         for selection in &selections.selections {
             match selection {
                 parsed_model::Selection::Field(selection_field) => {
-                    let field_name  = if let Some(alias) = &selection_field.alias { alias } else {&selection_field.name};
+                    let field_name = if let Some(alias) = &selection_field.alias {
+                        alias
+                    } else {
+                        &selection_field.name
+                    };
                     println!("!!     field {:?}", field_name);
                     if let Some(field) = get_field(schema, fields, &selection_field.name) {
-                        if selection_field.currency && *field.ty.get_scalar() != ScalarType::BuiltinType(BuiltinType::String) {
-                            err.error(BuildError::TypeMismatchError(selection_field.position.clone(),
-                                format!("@ms_currency can only be applied to a String field but {} is {}", selection_field.name, field.ty)));
+                        if selection_field.currency
+                            && *field.ty.get_scalar() != ScalarType::BuiltinType(BuiltinType::String)
+                        {
+                            err.error(BuildError::TypeMismatchError(
+                                selection_field.position.clone(),
+                                format!(
+                                    "@ms_currency can only be applied to a String field but {} is {}",
+                                    selection_field.name, field.ty
+                                ),
+                            ));
                         }
-                        selection_builder.with_field(&optional_type_conditions,  &field_name, 
-                            Self::wrap_type(&field.ty, 
+                        selection_builder.with_field(
+                            &optional_type_conditions,
+                            &field_name,
+                            Self::wrap_type(
+                                &field.ty,
                                 match field.ty.get_scalar() {
-                                ScalarType::DefinedType(defined_type) => {
-                                    match defined_type {
-                                        DefinedType::Scalar(name) => {
-                                            selection_manager.import_schema(name.clone());
+                                    ScalarType::DefinedType(defined_type) => {
+                                        match defined_type {
+                                            DefinedType::Scalar(name) => {
+                                                selection_manager.import_schema(name.clone());
 
-                                            SelectionField {
-                                                name: field_name.clone(), 
-                                                selection_type: Rc::new(SelectionFieldType::Scalar(name.clone())),
-                                                force_nonnull: selection_field.force_nonnull,
+                                                SelectionField {
+                                                    name: field_name.clone(),
+                                                    selection_type: Rc::new(SelectionFieldType::Scalar(name.clone())),
+                                                    force_nonnull: selection_field.force_nonnull,
+                                                }
                                             }
-                                        },
-                                        DefinedType::Object(name) => {
-                                            let object = schema.get_object(name)?;
-                                            let preferred_type_name = if let Some(alias) = &selection_field.alias {
-                                                registry.intern(to_pascal_case(&alias))
+                                            DefinedType::Object(name) => {
+                                                let object = schema.get_object(name)?;
+                                                let preferred_type_name = if let Some(alias) = &selection_field.alias {
+                                                    registry.intern(to_pascal_case(&alias))
+                                                } else {
+                                                    registry.intern(to_pascal_case(&object.name))
+                                                    // registry.intern(to_pascal_case(&selection_field.name))
+                                                };
+
+                                                Self::create_selection_field(
+                                                    err,
+                                                    registry,
+                                                    selection_manager,
+                                                    schema,
+                                                    fragments,
+                                                    field_name.clone(),
+                                                    preferred_type_name,
+                                                    name.clone(),
+                                                    &selection_field.selections,
+                                                    selection_field.force_nonnull,
+                                                    &object.fields,
+                                                    &None,
+                                                )?
                                             }
-                                            else {
-                                                registry.intern(to_pascal_case(&object.name))
-                                                // registry.intern(to_pascal_case(&selection_field.name))
-                                            };
+                                            DefinedType::Interface(name) => {
+                                                let object = schema.get_interface(name)?;
+                                                let preferred_type_name = if let Some(alias) = &selection_field.alias {
+                                                    registry.intern(to_pascal_case(&alias))
+                                                } else {
+                                                    registry.intern(to_pascal_case(&object.parsed.name))
+                                                    // registry.intern(to_pascal_case(&selection_field.name))
+                                                };
 
+                                                let interface = Some(object.implemented_by.clone());
 
-                                            Self::create_selection_field(err, registry, selection_manager, schema, fragments,
-                                                field_name.clone(), preferred_type_name, name.clone(), &selection_field.selections, selection_field.force_nonnull, &object.fields, &None)?
-                                        },
-                                        DefinedType::Interface(name) => {
-                                            let object = schema.get_interface(name)?;
-                                            let preferred_type_name = if let Some(alias) = &selection_field.alias {
-                                                registry.intern(to_pascal_case(&alias))
+                                                Self::create_selection_field(
+                                                    err,
+                                                    registry,
+                                                    selection_manager,
+                                                    schema,
+                                                    fragments,
+                                                    field_name.clone(),
+                                                    preferred_type_name,
+                                                    name.clone(),
+                                                    &selection_field.selections,
+                                                    selection_field.force_nonnull,
+                                                    &object.fields,
+                                                    &interface,
+                                                )?
                                             }
-                                            else {
-                                                registry.intern(to_pascal_case(&object.parsed.name))
-                                                // registry.intern(to_pascal_case(&selection_field.name))
-                                            };
+                                            DefinedType::Union(name) => {
+                                                let object = schema.get_union(name)?;
 
-                                            let interface = Some(object.implemented_by.clone());
+                                                let preferred_type_name = if let Some(alias) = &selection_field.alias {
+                                                    registry.intern(to_pascal_case(&alias))
+                                                } else {
+                                                    registry.intern(to_pascal_case(&object.parsed.name))
+                                                    // registry.intern(to_pascal_case(&selection_field.name))
+                                                };
 
+                                                let interface = Some(object.parsed.types.clone());
 
-                                            Self::create_selection_field(err, registry, selection_manager, schema, fragments, 
-                                                field_name.clone(), preferred_type_name, name.clone(), &selection_field.selections, selection_field.force_nonnull, &object.fields, &interface)?
-                                        },
-                                        DefinedType::Union(name) => {
-                                            let object = schema.get_union(name)?;
-                                            
-                                            let preferred_type_name = if let Some(alias) = &selection_field.alias {
-                                                registry.intern(to_pascal_case(&alias))
+                                                Self::create_selection_field(
+                                                    err,
+                                                    registry,
+                                                    selection_manager,
+                                                    schema,
+                                                    fragments,
+                                                    field_name.clone(),
+                                                    preferred_type_name,
+                                                    name.clone(),
+                                                    &selection_field.selections,
+                                                    selection_field.force_nonnull,
+                                                    &object.fields,
+                                                    &interface,
+                                                )?
                                             }
-                                            else {
-                                                registry.intern(to_pascal_case(&object.parsed.name))
-                                                // registry.intern(to_pascal_case(&selection_field.name))
-                                            };
+                                            DefinedType::Enum(name) => {
+                                                selection_manager.import_schema(name.clone());
 
-                                            let interface = Some(object.parsed.types.clone());
+                                                SelectionField {
+                                                    name: field_name.clone(),
+                                                    selection_type: Rc::new(SelectionFieldType::Enum(name.clone())),
+                                                    force_nonnull: selection_field.force_nonnull,
+                                                }
+                                            }
+                                            DefinedType::InputObject(name) => {
+                                                let object = schema.get_input_object(name)?;
 
-                                            Self::create_selection_field(err, registry, selection_manager, schema, fragments, 
-                                                field_name.clone(), preferred_type_name, name.clone(), &selection_field.selections, selection_field.force_nonnull, &object.fields, &interface)?
+                                                let preferred_type_name = if let Some(alias) = &selection_field.alias {
+                                                    registry.intern(to_pascal_case(&alias))
+                                                } else {
+                                                    registry.intern(to_pascal_case(&object.name))
+                                                    // registry.intern(to_pascal_case(&selection_field.name))
+                                                };
+
+                                                Self::create_selection_field(
+                                                    err,
+                                                    registry,
+                                                    selection_manager,
+                                                    schema,
+                                                    fragments,
+                                                    field_name.clone(),
+                                                    preferred_type_name,
+                                                    name.clone(),
+                                                    &selection_field.selections,
+                                                    selection_field.force_nonnull,
+                                                    &object.fields,
+                                                    &None,
+                                                )?
+                                            }
                                         }
-                                        DefinedType::Enum(name) => {
-                                            selection_manager.import_schema(name.clone());
-
-                                            SelectionField {
-                                                name: field_name.clone(), 
-                                                selection_type: Rc::new(SelectionFieldType::Enum(name.clone())),
-                                                force_nonnull: selection_field.force_nonnull,
-                                            }
-                                        },
-                                        DefinedType::InputObject(name) => {
-                                            let object = schema.get_input_object(name)?;
-                                            
-                                            let preferred_type_name = if let Some(alias) = &selection_field.alias {
-                                                registry.intern(to_pascal_case(&alias))
-                                            }
-                                            else {
-                                                registry.intern(to_pascal_case(&object.name))
-                                                // registry.intern(to_pascal_case(&selection_field.name))
-                                            };
-
-
-                                            Self::create_selection_field(err, registry, selection_manager, schema, fragments, 
-                                                field_name.clone(), preferred_type_name, name.clone(), &selection_field.selections, selection_field.force_nonnull, &object.fields, &None)?
-                                        },
                                     }
-                                },
-                                ScalarType::BuiltinType(builtin_type) => {
-
-                                    SelectionField {
-                                        name: field_name.clone(), 
+                                    ScalarType::BuiltinType(builtin_type) => SelectionField {
+                                        name: field_name.clone(),
                                         selection_type: Rc::new(
                                             if selection_field.currency && *builtin_type == BuiltinType::String {
                                                 SelectionFieldType::Currency
-                                            }
-                                            else {
+                                            } else {
                                                 SelectionFieldType::BuiltinType(builtin_type.clone())
-                                            }),
+                                            },
+                                        ),
                                         force_nonnull: selection_field.force_nonnull,
-                                    }
-                                }
-                        }));
-                   }
-                    else {
+                                    },
+                                },
+                            ),
+                        );
+                    } else {
                         println!("fields");
                         for (name, field) in fields {
                             println!("{}: {:?}", name, field.graphql_name());
                         }
-                        println!("not found: {}",selection_field.name);
-                        err.error(BuildError::MissingFieldError(selection_field.position.clone(), selection_field.name.to_string()));
+                        println!("not found: {}", selection_field.name);
+                        err.error(BuildError::MissingFieldError(
+                            selection_field.position.clone(),
+                            selection_field.name.to_string(),
+                        ));
                     }
-                },
+                }
                 parsed_model::Selection::FragmentSpread(fragment_spread) => {
                     if let Some(fragment) = fragments.get(&fragment_spread.name) {
                         // let object = schema.get_object(&fragment.type_condition)?;
@@ -2514,42 +2896,72 @@ impl GenericOperation {
                         println!("builder graphql_type_name {}", selection_builder.graphql_type_name);
                         println!("builder implemented_by {:?}", selection_builder.implemented_by);
 
-     
-
-                        Self::gather_dependencies(err, registry, selection_manager, &fragment.selections, schema, fragments, 
-                            // Some((fragment_spread.name.clone(), fragment.type_condition.clone())), 
-                            Some(Self::get_type_conditions(&fragment_spread.name, &fragment.type_condition, &selection_builder.implemented_by, schema)?), 
-                            fields, selection_builder)?;
+                        Self::gather_dependencies(
+                            err,
+                            registry,
+                            selection_manager,
+                            &fragment.selections,
+                            schema,
+                            fragments,
+                            // Some((fragment_spread.name.clone(), fragment.type_condition.clone())),
+                            Some(Self::get_type_conditions(
+                                &fragment_spread.name,
+                                &fragment.type_condition,
+                                &selection_builder.implemented_by,
+                                schema,
+                            )?),
+                            fields,
+                            selection_builder,
+                        )?;
+                    } else {
+                        err.error(BuildError::MissingFragmentError(
+                            fragment_spread.position.clone(),
+                            fragment_spread.name.to_string(),
+                        ));
                     }
-                    else {
-                        err.error(BuildError::MissingFragmentError(fragment_spread.position.clone(), fragment_spread.name.to_string()));
-                    }
-                
-                },
+                }
                 parsed_model::Selection::InlineFragment(inline_fragment_spread) => {
-
                     if let Some(type_condition) = &inline_fragment_spread.type_condition {
                         // let object = schema.get_object(type_condition)?;
                         let fields = schema.get_object_or_interface_fields(type_condition)?;
 
-                        Self::gather_dependencies(err, registry, selection_manager, &inline_fragment_spread.selections, schema, fragments, 
+                        Self::gather_dependencies(
+                            err,
+                            registry,
+                            selection_manager,
+                            &inline_fragment_spread.selections,
+                            schema,
+                            fragments,
                             // Some((type_condition.clone(), type_condition.clone())),
-                            Some(Self::get_type_conditions(type_condition, type_condition, &selection_builder.implemented_by, schema)?), 
-                            &fields, selection_builder)?;
-                    }
-                    else {
+                            Some(Self::get_type_conditions(
+                                type_condition,
+                                type_condition,
+                                &selection_builder.implemented_by,
+                                schema,
+                            )?),
+                            &fields,
+                            selection_builder,
+                        )?;
+                    } else {
                         // anonymous inline spread is essentially a no op nesting
 
-                        Self::gather_dependencies(err, registry, selection_manager, &inline_fragment_spread.selections, schema, fragments, None,
-                            fields, selection_builder)?;
+                        Self::gather_dependencies(
+                            err,
+                            registry,
+                            selection_manager,
+                            &inline_fragment_spread.selections,
+                            schema,
+                            fragments,
+                            None,
+                            fields,
+                            selection_builder,
+                        )?;
                     }
-                },
+                }
             };
         }
 
-        
         Ok(())
-       
     }
 
     pub fn print(&self, out: &mut Output) -> std::io::Result<()> {
@@ -2574,12 +2986,20 @@ impl GenericOperation {
         }
         writeln!(out, "}}")
     }
-    
-    pub fn generate(&self, out: &mut Output, schema: &Rc<Schema>, executable_document: &ExecutableDocument, selection_manager: &NameSpaceManager) -> Result<(), Error> {
+
+    pub fn generate(
+        &self,
+        out: &mut Output,
+        schema: &Rc<Schema>,
+        executable_document: &ExecutableDocument,
+        selection_manager: &NameSpaceManager,
+    ) -> Result<(), Error> {
         writeln!(out, "pub mod {} {{", to_snake_case(&self.parsed.name))?;
         {
             let mut out = out.indent();
-            writeln!(out, r#"
+            writeln!(
+                out,
+                r#"
 use display_json::DisplayAsJsonPretty;
 use serde::{{Deserialize, Serialize}};
 use bruce_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
@@ -2589,23 +3009,25 @@ use bruce_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
             for name in selection_manager.get_schema_dependencies() {
                 if let Some(object) = schema.defined_types.get(name) {
                     writeln!(out, "use super::super::{};", object.rust_name())?;
-                }
-                else {
+                } else {
                     println!("cargo:rustc-cfg=graphql_generation_error");
                     writeln!(out, "compile_error!(\"Failed to find type {}\");", name)?;
                 }
             }
 
-
-
             writeln!(out, "// Start dependencies")?;
             for (name, id) in &selection_manager.get_context().names {
                 let selection = selection_manager.get(*id);
-                writeln!(out, "// generate name={} id={}, selection.name={}", name, id, selection.name())?;
+                writeln!(
+                    out,
+                    "// generate name={} id={}, selection.name={}",
+                    name,
+                    id,
+                    selection.name()
+                )?;
                 selection.generate(&mut out, selection_manager, schema)?;
             }
             writeln!(out, "// End dependencies")?;
-
 
             if !self.variables.is_empty() {
                 writeln!(out, "#[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty)]")?;
@@ -2613,13 +3035,18 @@ use bruce_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
 
                 {
                     let mut out = out.indent();
-                
+
                     for (name, field) in &self.variables {
                         writeln!(out, "#[serde(rename = \"{}\")]", &field.parsed.name)?;
                         if field.ty.is_optional() {
                             writeln!(out, "#[serde(skip_serializing_if = \"Option::is_none\")]")?;
                         }
-                        writeln!(out, "{}_: {},", to_snake_case(&name), field.ty.rust_type(Optionality::Default))?;
+                        writeln!(
+                            out,
+                            "{}_: {},",
+                            to_snake_case(&name),
+                            field.ty.rust_type(Optionality::Default)
+                        )?;
                     }
                 }
 
@@ -2631,7 +3058,7 @@ use bruce_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
                 writeln!(out, "impl {} {{", rust_name)?;
                 {
                     let mut out = out.indent();
-        
+
                     // writeln!(out, "pub fn builder() -> {}Builder {{", rust_name)?;
                     // writeln!(out, "    {}Builder {{", rust_name)?;
                     // for field in self.variables.values() {
@@ -2640,44 +3067,41 @@ use bruce_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
                     // writeln!(out, "    }}")?;
                     // writeln!(out, "}}")?;
 
-
-        
                     writeln!(out, "pub fn get_formal_params(&self, buf: &mut String) {{")?;
                     for (name, field) in &self.variables {
                         if field.ty.is_optional() {
                             writeln!(out, "    if self.{}_.is_some() {{", to_snake_case(&field.parsed.name))?;
                             writeln!(out, "        buf.push_str(\"${}: {},\");", &name, field.graphql_name())?;
                             writeln!(out, "    }}")?;
-                        }
-                        else {
+                        } else {
                             writeln!(out, "    buf.push_str(\"${}: {},\");", &name, field.graphql_name())?;
                         }
                     }
                     writeln!(out, "}}")?;
                 }
-            
+
                 writeln!(out, "}}")?;
                 writeln!(out, "")?;
-        
+
                 writeln!(out, "")?;
                 // writeln!(out, "pub struct {}Builder {{", rust_name)?;
-        
+
                 // for field in self.variables.values() {
                 //     writeln!(out, "    {}_: {},", to_snake_case(&field.parsed.name), field.ty.rust_type(Optionality::Optional))?;
                 // }
-            
+
                 // writeln!(out, "}}")?;
                 // writeln!(out, "")?;
-        
+
                 // writeln!(out, "impl {}Builder {{", rust_name)?;
                 // {
                 //     let mut out = out.indent();
-        
+
                 //     for field in self.variables.values() {
                 //         writeln!(out, "pub fn with_{}(mut self, value: {}) -> Self {{", to_snake_case(&field.parsed.name), field.ty.rust_type(Optionality::Required))?;
                 //         {
                 //             let mut out = out.indent();
-        
+
                 //             writeln!(out, "self.{}_ = Some(value);", to_snake_case(&field.parsed.name))?;
                 //             writeln!(out, "self")?;
                 //         }
@@ -2687,7 +3111,7 @@ use bruce_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
                 //     writeln!(out, "pub fn build(self) -> Result<{}, bruce_graphql::error::Error> {{", rust_name)?;
                 //     {
                 //         let mut out = out.indent();
-        
+
                 //         for field in self.variables.values() {
                 //             if let Type::Required(_) = field.ty {
                 //                 writeln!(out, "if let None = self.{}_ {{", to_snake_case(&field.parsed.name))?;
@@ -2695,11 +3119,11 @@ use bruce_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
                 //                 writeln!(out, "}}")?;
                 //             }
                 //         }
-        
+
                 //         writeln!(out, "Ok({} {{", rust_name)?;
                 //         {
                 //             let mut out = out.indent();
-        
+
                 //             for field in self.variables.values() {
                 //                 if let Type::Required(_) = field.ty {
                 //                     writeln!(out, "{}_: self.{}_.unwrap(),", to_snake_case(&field.parsed.name), to_snake_case(&field.parsed.name))?;
@@ -2737,9 +3161,7 @@ use bruce_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
                     writeln!(out, "pub fn new() -> {} {{", self.parsed.operation)?;
                     writeln!(out.indent(), "{} {{}}", self.parsed.operation)?;
                     writeln!(out, "}}")?;
-                }
-                else {
-
+                } else {
                     writeln!(out, "pub fn from(variables: Variables) -> {} {{", self.parsed.operation)?;
                     writeln!(out.indent(), "{} {{variables}}", self.parsed.operation)?;
                     writeln!(out, "}}")?;
@@ -2748,9 +3170,14 @@ use bruce_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
                     writeln!(out, "pub fn new(")?;
                     {
                         let mut out = out.indent();
-                    
+
                         for (name, field) in &self.variables {
-                            writeln!(out, "{}_: {},", to_snake_case(&name), field.ty.rust_type(Optionality::Default))?;
+                            writeln!(
+                                out,
+                                "{}_: {},",
+                                to_snake_case(&name),
+                                field.ty.rust_type(Optionality::Default)
+                            )?;
                         }
                     }
                     writeln!(out, ") -> {} {{", self.parsed.operation)?;
@@ -2782,32 +3209,40 @@ use bruce_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
                     writeln!(out, "}}")?;
                 }
             }
-            
+
             writeln!(out, "}} // End of {}", self.parsed.operation)?;
             writeln!(out, "")?;
 
             if !self.variables.is_empty() {
-
-        
                 writeln!(out, "")?;
                 writeln!(out, "pub struct {}Builder {{", self.parsed.operation)?;
-        
+
                 for field in self.variables.values() {
-                    writeln!(out, "/* Bruce 1 */    {}_: {},", to_snake_case(&field.parsed.name), field.ty.rust_type(Optionality::Optional))?;
+                    writeln!(
+                        out,
+                        "/* Bruce 1 */    {}_: {},",
+                        to_snake_case(&field.parsed.name),
+                        field.ty.rust_type(Optionality::Optional)
+                    )?;
                 }
-            
+
                 writeln!(out, "}}")?;
                 writeln!(out, "")?;
-        
+
                 writeln!(out, "impl {}Builder {{", self.parsed.operation)?;
                 {
                     let mut out = out.indent();
-        
+
                     for field in self.variables.values() {
-                        writeln!(out, "pub fn with_{}(mut self, value: {}) -> Self {{", to_snake_case(&field.parsed.name), field.ty.rust_type(Optionality::Required))?;
+                        writeln!(
+                            out,
+                            "pub fn with_{}(mut self, value: {}) -> Self {{",
+                            to_snake_case(&field.parsed.name),
+                            field.ty.rust_type(Optionality::Required)
+                        )?;
                         {
                             let mut out = out.indent();
-        
+
                             writeln!(out, "self.{}_ = Some(value);", to_snake_case(&field.parsed.name))?;
                             writeln!(out, "self")?;
                         }
@@ -2820,36 +3255,54 @@ use bruce_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
                 writeln!(out, "")?;
 
                 writeln!(out, "//Site 1")?;
-                writeln!(out, "impl GraphQLQueryBuilder<{}, Response> for {}Builder {{", self.parsed.operation, self.parsed.operation)?;
-
+                writeln!(
+                    out,
+                    "impl GraphQLQueryBuilder<{}, Response> for {}Builder {{",
+                    self.parsed.operation, self.parsed.operation
+                )?;
 
                 {
                     let mut out = out.indent();
 
-
-
-                    writeln!(out, "fn build(self) -> Result<{}, bruce_graphql::error::Error> {{", self.parsed.operation)?;
+                    writeln!(
+                        out,
+                        "fn build(self) -> Result<{}, bruce_graphql::error::Error> {{",
+                        self.parsed.operation
+                    )?;
                     {
                         let mut out = out.indent();
-        
+
                         for field in self.variables.values() {
                             if let Type::Required(_) = field.ty {
                                 writeln!(out, "if let None = self.{}_ {{", to_snake_case(&field.parsed.name))?;
-                                writeln!(out, "    return Err(bruce_graphql::error::Error::MissingRequiredValueError(\"{}\"))", field.parsed.name)?;
+                                writeln!(
+                                    out,
+                                    "    return Err(bruce_graphql::error::Error::MissingRequiredValueError(\"{}\"))",
+                                    field.parsed.name
+                                )?;
                                 writeln!(out, "}}")?;
                             }
                         }
-        
+
                         writeln!(out, "Ok({}::from(Variables {{", self.parsed.operation)?;
                         {
                             let mut out = out.indent();
-        
+
                             for field in self.variables.values() {
                                 if let Type::Required(_) = field.ty {
-                                    writeln!(out, "{}_: self.{}_.unwrap(),", to_snake_case(&field.parsed.name), to_snake_case(&field.parsed.name))?;
-                                }
-                                else {
-                                    writeln!(out, "{}_: self.{}_,", to_snake_case(&field.parsed.name), to_snake_case(&field.parsed.name))?;
+                                    writeln!(
+                                        out,
+                                        "{}_: self.{}_.unwrap(),",
+                                        to_snake_case(&field.parsed.name),
+                                        to_snake_case(&field.parsed.name)
+                                    )?;
+                                } else {
+                                    writeln!(
+                                        out,
+                                        "{}_: self.{}_,",
+                                        to_snake_case(&field.parsed.name),
+                                        to_snake_case(&field.parsed.name)
+                                    )?;
                                 }
                             }
                             writeln!(out, "}}))")?;
@@ -2872,33 +3325,45 @@ use bruce_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
                 writeln!(out, "fn get_query(&self) -> String {{")?;
                 {
                     let mut out = out.indent();
-                    writeln!(out, "let mut buf = String::from(\"{} {}\");", self.parsed.operation.to_lower_case(), self.parsed.name)?;
+                    writeln!(
+                        out,
+                        "let mut buf = String::from(\"{} {}\");",
+                        self.parsed.operation.to_lower_case(),
+                        self.parsed.name
+                    )?;
 
-                    if ! self.variables.is_empty() {
-
+                    if !self.variables.is_empty() {
                         writeln!(out, "buf.push('(');")?;
                         writeln!(out, "self.variables.get_formal_params(&mut buf);")?;
                         writeln!(out, "buf.push(')');")?;
-                        
                     }
 
                     let mut done_fragments = IndexSet::new();
                     let mut fragments = IndexSet::new();
-                    self.selection_query_list.generate_query(&mut out, &self.variables, &mut fragments)?;
+                    self.selection_query_list
+                        .generate_query(&mut out, &self.variables, &mut fragments)?;
 
-                    while ! fragments.is_empty() {
-                        fragments = Self::generate_fragments(&mut out, &self.variables, executable_document, &fragments, &mut done_fragments)?;
+                    while !fragments.is_empty() {
+                        fragments = Self::generate_fragments(
+                            &mut out,
+                            &self.variables,
+                            executable_document,
+                            &fragments,
+                            &mut done_fragments,
+                        )?;
                     }
                     writeln!(out, "buf")?;
                 }
                 writeln!(out, "}}")?;
                 writeln!(out, "")?;
 
-                writeln!(out, "fn get_variables(&self) -> Result<std::string::String, serde_json::Error> {{")?;
+                writeln!(
+                    out,
+                    "fn get_variables(&self) -> Result<std::string::String, serde_json::Error> {{"
+                )?;
                 if self.variables.is_empty() {
                     writeln!(out.indent(), "Ok(String::from(\"{{}}\"))")?;
-                }
-                else {
+                } else {
                     writeln!(out.indent(), "serde_json::to_string_pretty(&self.variables)")?;
                 }
                 writeln!(out, "}}")?;
@@ -2912,11 +3377,17 @@ use bruce_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
         writeln!(out, "}}")?;
         Ok(())
     }
-    
-    fn generate_fragments(out: &mut Output<'_>, variables: &SharedMap<Field>, executable_document: &ExecutableDocument, fragments: &IndexSet<Name>, done_fragments: &mut IndexSet<Name>) -> Result<IndexSet<Name>, Error> {
+
+    fn generate_fragments(
+        out: &mut Output<'_>,
+        variables: &SharedMap<Field>,
+        executable_document: &ExecutableDocument,
+        fragments: &IndexSet<Name>,
+        done_fragments: &mut IndexSet<Name>,
+    ) -> Result<IndexSet<Name>, Error> {
         let mut new_fragments = IndexSet::new();
         for fragment_name in fragments {
-            if ! done_fragments.contains(fragment_name) {
+            if !done_fragments.contains(fragment_name) {
                 let fragment = executable_document.fragments.get(fragment_name).unwrap();
 
                 fragment.generate_query(out, variables, &mut new_fragments)?;
@@ -2926,16 +3397,19 @@ use bruce_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
 
         Ok(new_fragments)
     }
-    
-    fn get_type_conditions(name: &Name, type_condition: &Name, implemented_by: &Option<Vec<Name>>, schema: &Rc<Schema>) -> Result<Vec<Name>, Error> {
+
+    fn get_type_conditions(
+        name: &Name,
+        type_condition: &Name,
+        implemented_by: &Option<Vec<Name>>,
+        schema: &Rc<Schema>,
+    ) -> Result<Vec<Name>, Error> {
         if name.as_str() == "meterFields" {
             println!("HERE");
         }
         if let Some(condition_type) = schema.defined_types.get(type_condition) {
             match condition_type {
-                TypeDefinition::Object(_) => {
-                    Ok(vec!(type_condition.clone()))
-                },
+                TypeDefinition::Object(_) => Ok(vec![type_condition.clone()]),
                 TypeDefinition::Interface(interface) => {
                     let mut type_conditions = Vec::new();
 
@@ -2954,16 +3428,24 @@ use bruce_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
 
                         println!("!! VariantID name={} type_conditions={:?}", name, type_conditions);
                         Ok(type_conditions)
+                    } else {
+                        Err(Error::BuildFailed(format!(
+                            "Type condition '{}' is an interface but container is not",
+                            type_condition
+                        )))
                     }
-                    else {
-                        Err(Error::BuildFailed(format!("Type condition '{}' is an interface but container is not", type_condition)))
-                    }
-                },
-                _ => Err(Error::BuildFailed(format!("Invalid type condition '{}' is neither interface or object but {}", type_condition, condition_type.type_name()))),
+                }
+                _ => Err(Error::BuildFailed(format!(
+                    "Invalid type condition '{}' is neither interface or object but {}",
+                    type_condition,
+                    condition_type.type_name()
+                ))),
             }
-        }
-        else {
-            Err(Error::BuildFailed(format!("Type condition '{}' not found", type_condition)))
+        } else {
+            Err(Error::BuildFailed(format!(
+                "Type condition '{}' not found",
+                type_condition
+            )))
         }
     }
 }
@@ -2974,7 +3456,7 @@ use bruce_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
 // /// name of that Type. If on the other hand, it refers to an Interface, then the type_condistions will list all
 // /// of the Types which implement that Interface ince that is the set of possible types which might be returned
 // /// by the query.
-// /// 
+// ///
 // /// In the case where there are multiple fragment spreads then there will be multiple variants, if one or more
 // /// of those fragments has an Interface type condition then the fragments will accumulate into their respective
 // /// object type conditions.
@@ -2987,8 +3469,7 @@ use bruce_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
 fn get_field<'a>(schema: &'a Rc<Schema>, fields: &'a SharedMap<Field>, name: &String) -> Option<&'a Rc<Field>> {
     if name == TYPE_NAME {
         Some(&schema.__typename)
-    }
-    else {
+    } else {
         fields.get(name)
     }
 }
@@ -3042,11 +3523,10 @@ impl Isomorphic for NameSpaceItem {
 
         for (name, field) in self_fields {
             if let Some(other_field) = other_fields.get(name) {
-                if ! field.selection_type.is_isomorphic(&other_field.selection_type) {
+                if !field.selection_type.is_isomorphic(&other_field.selection_type) {
                     return false;
                 }
-            }
-            else {
+            } else {
                 return false;
             }
         }
@@ -3070,7 +3550,6 @@ impl NameSpaceItem {
         }
     }
 
-
     fn index(&self) -> usize {
         match self {
             NameSpaceItem::Selection(selection) => selection.index,
@@ -3078,7 +3557,12 @@ impl NameSpaceItem {
         }
     }
 
-    fn generate(&self, out: &mut Output<'_>, selection_manager: &NameSpaceManager, schema: &Schema) -> Result<(), Error> {
+    fn generate(
+        &self,
+        out: &mut Output<'_>,
+        selection_manager: &NameSpaceManager,
+        schema: &Schema,
+    ) -> Result<(), Error> {
         match self {
             NameSpaceItem::Selection(selection) => selection.generate(out, selection_manager, schema),
             NameSpaceItem::Variant(_) => Ok(()),
@@ -3097,11 +3581,10 @@ impl NameSpaceItem {
 
         for (name, field) in self_fields {
             if let Some(other_field) = other_fields.get(name) {
-                if ! field.selection_type.is_isomorphic(&other_field.selection_type) {
+                if !field.selection_type.is_isomorphic(&other_field.selection_type) {
                     return false;
                 }
-            }
-            else {
+            } else {
                 return false;
             }
         }
@@ -3130,7 +3613,6 @@ impl Print for NameSpaceManager {
 
             for s in &self.all_schema_imports {
                 writeln!(out, "-{}", s)?;
-
             }
 
             writeln!(out, "contexts {{")?;
@@ -3146,11 +3628,9 @@ impl Print for NameSpaceManager {
                             writeln!(out, "{} {{", operation)?;
                             context.print(&mut out.indent())?;
                             writeln!(out, "}}")?;
-
                         }
-                        
                     }
-                        writeln!(out, "}}")?;
+                    writeln!(out, "}}")?;
                 }
             }
             writeln!(out, "}}")?;
@@ -3180,8 +3660,8 @@ impl NameSpaceManager {
                 for id in &context.imports {
                     if let Some(item) = self.items.get(*id) {
                         let preferred_name = match item {
-                            NameSpaceItem::Selection(content ) => &content.name,
-                            NameSpaceItem::Variant(content ) => &content.name,
+                            NameSpaceItem::Selection(content) => &content.name,
+                            NameSpaceItem::Variant(content) => &content.name,
                         };
 
                         // let preferred_name = selection_names.iter().next().unwrap();
@@ -3192,14 +3672,13 @@ impl NameSpaceManager {
                             loop {
                                 let possible_name = registry.intern(format!("{}{}", preferred_name, i));
 
-                                if ! context.names.contains_key(&possible_name) {
+                                if !context.names.contains_key(&possible_name) {
                                     name = possible_name;
                                     break;
                                 }
                                 i += 1;
                             }
-                        }
-                        else {
+                        } else {
                             name = preferred_name.clone();
                         }
 
@@ -3219,13 +3698,12 @@ impl NameSpaceManager {
                         println!("context.names = {:?}", &context.names);
                         // self.names.insert(*id, name.clone());
                         self.names.insert(*id, name);
-                    }
-                    else {
+                    } else {
                         panic!("Failed to find selection {}", id);
                     }
                 }
             }
-       }
+        }
     }
 
     pub fn create_document(&mut self, document_name: Name) {
@@ -3282,8 +3760,14 @@ impl NameSpaceManager {
         self.all_schema_imports.insert(name);
     }
 
-    fn insert(&mut self, graphql_type_name: Name, name: Name, fields: IndexMap<Name, SelectionField>, p_variants: IndexMap<Name, (Name, IndexMap<Name, SelectionField>)>, implemented_by: Option<Vec<Name>>) -> usize {
-        
+    fn insert(
+        &mut self,
+        graphql_type_name: Name,
+        name: Name,
+        fields: IndexMap<Name, SelectionField>,
+        p_variants: IndexMap<Name, (Name, IndexMap<Name, SelectionField>)>,
+        implemented_by: Option<Vec<Name>>,
+    ) -> usize {
         if "Node" == graphql_type_name.as_str() {
             println!("HERE {}", graphql_type_name);
         }
@@ -3296,24 +3780,20 @@ impl NameSpaceManager {
             let index = self.items.len();
 
             println!("insert push variant {} {:?}", self.items.len(), &name);
-            let variant: Rc<Variant> = Rc::new(Variant{
+            let variant: Rc<Variant> = Rc::new(Variant {
                 index,
                 name,
                 fields,
                 type_condition,
             });
 
-            self.items.push( NameSpaceItem::Variant(variant.clone()));
+            self.items.push(NameSpaceItem::Variant(variant.clone()));
             self.get_context_mut().imports.insert(index);
 
             variants.push(variant);
-
-
         }
 
-
         let selection_index = self.items.len();
-
 
         println!("insert push main {} {:?}", self.items.len(), &name);
 
@@ -3335,20 +3815,18 @@ impl NameSpaceManager {
 
         // let result = content.clone();
 
-        self.items.push( NameSpaceItem::Selection(content));
+        self.items.push(NameSpaceItem::Selection(content));
         self.get_context_mut().imports.insert(selection_index);
-        
 
         selection_index
     }
-    
+
     fn get_isomorph(&self, content: &Selection) -> Option<usize> {
         if content.variants.is_empty() {
             for item in &self.items {
                 match item {
                     NameSpaceItem::Selection(selection) => {
                         if selection.variants.is_empty() && item.is_field_isomorphic(&content.fields) {
-
                             println!("is_field_isomorphic {} {}", content.graphql_type_name, item.name());
                             for (name, field) in &content.fields {
                                 println!(" content {} {:?}", name, field);
@@ -3356,32 +3834,30 @@ impl NameSpaceManager {
                             for (name, field) in item.fields() {
                                 println!(" item {} {:?}", name, field);
                             }
-                            return Some(item.index())
+                            return Some(item.index());
                         }
-                    },
-                    NameSpaceItem::Variant(_variant) => {},
+                    }
+                    NameSpaceItem::Variant(_variant) => {}
                 }
-                
             }
         }
-        
+
         None
     }
-    
+
     fn get_schema_dependencies(&self) -> &IndexSet<Name> {
         &self.get_context().schema_imports
     }
-    
+
     fn get_name(&self, id: &usize) -> &Name {
         println!("get_name({}) = {:?}", id, self.names.get(id));
         self.names.get(id).unwrap()
     }
-    
+
     fn get(&self, id: usize) -> &NameSpaceItem {
         if let Some(item) = self.items.get(id) {
             item
-        }
-        else {
+        } else {
             panic!("Cant find selection {}", id);
         }
     }
@@ -3408,7 +3884,12 @@ impl Print for FragmentDefinition {
 }
 
 impl FragmentDefinition {
-    fn new(registry: &mut NameRegistry, parsed: &Rc<parsed_model::FragmentDefinition>, schema: &Rc<Schema>, fields: &FieldMap)-> Result<Self, Error> {
+    fn new(
+        registry: &mut NameRegistry,
+        parsed: &Rc<parsed_model::FragmentDefinition>,
+        schema: &Rc<Schema>,
+        fields: &FieldMap,
+    ) -> Result<Self, Error> {
         Ok(FragmentDefinition {
             name: parsed.name.clone(),
             selection_query_list: SelectionQueryList::new(&parsed.selections, registry, schema, fields)?,
@@ -3416,10 +3897,18 @@ impl FragmentDefinition {
         })
     }
 
-    pub fn generate_query(&self, out: &mut Output<'_>, variables: &crate::validated_model::FieldMap, fragments: &mut IndexSet<Name>) -> Result<(), Error> {
-        
+    pub fn generate_query(
+        &self,
+        out: &mut Output<'_>,
+        variables: &crate::validated_model::FieldMap,
+        fragments: &mut IndexSet<Name>,
+    ) -> Result<(), Error> {
         writeln!(out, "")?;
-        writeln!(out, "buf.push_str(\"fragment {} on {}\\n\");", self.name, self.type_condition)?;
+        writeln!(
+            out,
+            "buf.push_str(\"fragment {} on {}\\n\");",
+            self.name, self.type_condition
+        )?;
         writeln!(out, "buf.push('{{');")?;
         {
             let mut out = out.indent();
@@ -3429,7 +3918,7 @@ impl FragmentDefinition {
             }
         }
         writeln!(out, "buf.push('}}');")?;
-        
+
         Ok(())
     }
 }
@@ -3441,29 +3930,49 @@ pub struct ExecutableDocument {
 }
 
 impl ExecutableDocument {
-    pub fn new(err: &mut ErrorCollector, registry: &mut NameRegistry,  selection_manager: &mut NameSpaceManager, parsed: &Rc<parsed_model::ExecutableDocument>, schema: &Rc<Schema>) ->  Result<Self, Error> {
-
+    pub fn new(
+        err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        selection_manager: &mut NameSpaceManager,
+        parsed: &Rc<parsed_model::ExecutableDocument>,
+        schema: &Rc<Schema>,
+    ) -> Result<Self, Error> {
         let mut fragments: IndexMap<Rc<String>, FragmentDefinition> = IndexMap::new();
 
         for fragment_definition in parsed.fragments.values() {
             // let object = schema.get_object(&fragment_definition.type_condition)?;
             // let fields = &object.fields;
             let fields = schema.get_object_or_interface_fields(&fragment_definition.type_condition)?;
-            fragments.insert(fragment_definition.name.clone(), FragmentDefinition::new(registry, fragment_definition, schema, fields)?);
+            fragments.insert(
+                fragment_definition.name.clone(),
+                FragmentDefinition::new(registry, fragment_definition, schema, fields)?,
+            );
         }
-
-        
 
         let mut operations = Vec::new();
 
         for query in &parsed.queries {
             selection_manager.create_operation(query.name.clone());
-            operations.push(GenericOperation::new(err, registry, selection_manager, query, schema, &parsed.fragments)?);
+            operations.push(GenericOperation::new(
+                err,
+                registry,
+                selection_manager,
+                query,
+                schema,
+                &parsed.fragments,
+            )?);
         }
 
         for mutation in &parsed.mutations {
             selection_manager.create_operation(mutation.name.clone());
-            operations.push(GenericOperation::new(err, registry, selection_manager, mutation, schema, &parsed.fragments)?);
+            operations.push(GenericOperation::new(
+                err,
+                registry,
+                selection_manager,
+                mutation,
+                schema,
+                &parsed.fragments,
+            )?);
         }
 
         Ok(ExecutableDocument {
@@ -3502,8 +4011,13 @@ impl ExecutableDocument {
         writeln!(out, "}}")
     }
 
-    pub fn generate(&self, out: &mut Output, schema: &Rc<Schema>, selection_manager: &mut NameSpaceManager) -> Result<(), Error> {
-       writeln!(out, "pub mod {} {{", self.parsed.name)?;
+    pub fn generate(
+        &self,
+        out: &mut Output,
+        schema: &Rc<Schema>,
+        selection_manager: &mut NameSpaceManager,
+    ) -> Result<(), Error> {
+        writeln!(out, "pub mod {} {{", self.parsed.name)?;
         {
             let mut out = out.indent();
 
