@@ -2727,7 +2727,7 @@ impl GenericOperation {
                             err.error(BuildError::TypeMismatchError(
                                 selection_field.position.clone(),
                                 format!(
-                                    "@ms_currency can only be applied to a String field but {} is {}",
+                                    "@bruce_currency can only be applied to a String field but {} is {}",
                                     selection_field.name, field.ty
                                 ),
                             ));

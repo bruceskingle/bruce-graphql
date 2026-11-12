@@ -1,9 +1,9 @@
 query GetLuke {
   oneOfEverything(id: "cGVvcGxlOjE=") {
   	string
-    optionalAmount @ms_optional
+    optionalAmount @bruce_optional
     optionalString
-    currency @ms_currency
-    optionalCurrency @ms_currency
+    currency @bruce_currency
+    optionalCurrency @bruce_currency
   }
 }

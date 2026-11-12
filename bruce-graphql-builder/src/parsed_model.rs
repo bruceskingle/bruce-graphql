@@ -15,10 +15,10 @@ use crate::NameRegistry;
 use crate::Output;
 use crate::TYPE_NAME;
 
-const MS_OPTIONAL: &str = "ms_optional";
-const MS_REQUIRED: &str = "ms_required";
-const MS_REQUIRED_BY_DEFAULT: &str = "ms_required_by_default";
-const MS_CURRENCY: &str = "ms_currency";
+const BRUCE_OPTIONAL: &str = "bruce_optional";
+const BRUCE_REQUIRED: &str = "bruce_required";
+const BRUCE_REQUIRED_BY_DEFAULT: &str = "bruce_required_by_default";
+const BRUCE_CURRENCY: &str = "bruce_currency";
 
 pub type FieldMap = IndexMap<Name, Rc<Field>>;
 
@@ -1064,21 +1064,21 @@ impl SelectionField {
         let mut currency = false;
         // println!("!! check {} directives", field.directives.len());
         for directive in field.directives {
-            // println!("!! directive name = '{}' test '{}'", directive.name, MS_OPTIONAL);
+            // println!("!! directive name = '{}' test '{}'", directive.name, BRUCE_OPTIONAL);
             match directive.name.as_str() {
-                MS_OPTIONAL => {
+                BRUCE_OPTIONAL => {
                     // println!("!! ITS OPTIONAL");
                     force_nonnull = false;
                 }
-                MS_REQUIRED => {
-                    // println!("!! ITS MS_REQUIRED");
+                BRUCE_REQUIRED => {
+                    // println!("!! ITS BRUCE_REQUIRED");
                     force_nonnull = true;
                 }
-                MS_REQUIRED_BY_DEFAULT => {
-                    // println!("!! ITS MS_REQUIRED_BY_DEFAULT");
+                BRUCE_REQUIRED_BY_DEFAULT => {
+                    // println!("!! ITS BRUCE_REQUIRED_BY_DEFAULT");
                     new_required_by_default = true;
                 }
-                MS_CURRENCY => {
+                BRUCE_CURRENCY => {
                     currency = true;
                 }
                 _ => {
@@ -1261,10 +1261,10 @@ fn get_required_by_default(
     let mut required_by_default = false;
     // println!("!!! check directives");
     for directive in directives {
-        // println!("!!! directive name = '{}' test '{}'", directive.name, MS_REQUIRED_BY_DEFAULT);
+        // println!("!!! directive name = '{}' test '{}'", directive.name, BRUCE_REQUIRED_BY_DEFAULT);
         match directive.name.as_str() {
-            MS_REQUIRED_BY_DEFAULT => {
-                // println!("!! ITS MS_REQUIRED_BY_DEFAULT");
+            BRUCE_REQUIRED_BY_DEFAULT => {
+                // println!("!! ITS BRUCE_REQUIRED_BY_DEFAULT");
                 required_by_default = true;
             }
             _ => {

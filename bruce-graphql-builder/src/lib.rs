@@ -1004,7 +1004,7 @@ type Price {
             r#"query GetPrice {
   price {
     amount
-    currency @ms_currency
+    currency @bruce_currency
   }
 }"#,
         );
@@ -1017,7 +1017,7 @@ type Price {
             CURRENCY_SCHEMA,
             r#"query GetPrice {
   price {
-    amount @ms_currency
+    amount @bruce_currency
     currency
   }
 }"#,

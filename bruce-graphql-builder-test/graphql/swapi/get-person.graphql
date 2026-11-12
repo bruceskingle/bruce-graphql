@@ -1,6 +1,6 @@
 query GetPerson($id: ID!) {
   person(id: $id) {
     name
-    hairColor @ms_optional
+    hairColor @bruce_optional
   }
 }
