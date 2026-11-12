@@ -10,7 +10,7 @@ through the runtime library.
 | ```bruce-graphql-builder``` | The code generator, used from a build script. |
 | ```bruce-graphql-builder-test``` | Tests and examples of the builder, not published. |
 
-Its first user is [Marco Sparko](https://github.com/bruceskingle/marco-sparko), a desktop app for seeing a household's
+Its first user is [Bruce's Smart Home](https://github.com/bruceskingle/bruce-smart-home), a desktop app for seeing a household's
 energy, which uses it for Octopus Energy's API. It was called ```sparko_graphql``` before 0.5.0.
 
 License
