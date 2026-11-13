@@ -79,7 +79,7 @@ checksum = "b048fb63fd8b5923fc5aa7b340d8e156aec7ec02f0c78fa8a6ddc2613f6f71de"
 
 [[package]]
 name = "bruce-graphql"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "display_json",
  "indexmap",
@@ -95,7 +95,7 @@ dependencies = [
 
 [[package]]
 name = "bruce-graphql-builder"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "graphql-parser",
  "indexmap",
@@ -104,7 +104,7 @@ dependencies = [
 
 [[package]]
 name = "bruce-graphql-builder-test"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "bruce-graphql",
  "bruce-graphql-builder",
