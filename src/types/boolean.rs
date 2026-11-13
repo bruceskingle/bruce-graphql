@@ -94,8 +94,8 @@ mod tests {
 
     #[test]
     fn test_from_str() {
-        assert_eq!(Boolean::from_str("true").unwrap().0, true);
-        assert_eq!(Boolean::from_str("false").unwrap().0, false);
+        assert!(Boolean::from_str("true").unwrap().0);
+        assert!(!Boolean::from_str("false").unwrap().0);
 
         expect_str_error("maybe");
         expect_str_error("\"maybe\"");
@@ -105,7 +105,7 @@ mod tests {
 
     fn expect_str_error(s: &str) {
         let result = Boolean::from_str(s);
-        if let Ok(_) = result {
+        if result.is_ok() {
             panic!("Expecting error for {}", s);
         }
     }
@@ -121,7 +121,7 @@ mod tests {
 
     fn expect_parse_error(s: &str) {
         let result: Result<MyStruct, serde_json::Error> = serde_json::from_str(s);
-        if let Ok(_) = result {
+        if result.is_ok() {
             panic!("Expecting error for {}", s);
         }
     }

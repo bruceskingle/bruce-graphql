@@ -7,19 +7,25 @@ pub struct ParamBuffer {
     buf: String,
 }
 
+impl Default for ParamBuffer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ParamBuffer {
     pub fn new() -> ParamBuffer {
         ParamBuffer { buf: String::new() }
     }
 
     pub fn push(&mut self, s: &str) {
-        self.buf.push_str(if self.buf.len() == 0 { "(" } else { ", " });
+        self.buf.push_str(if self.buf.is_empty() { "(" } else { ", " });
 
         self.buf.push_str(s);
     }
 
     pub fn consume(mut self) -> String {
-        if self.buf.len() > 0 {
+        if !self.buf.is_empty() {
             self.buf.push(')');
         }
         self.buf
@@ -45,10 +51,10 @@ pub struct GraphQL;
 
 impl GraphQL {
     pub fn prefix(a: &str, b: &str) -> String {
-        if b.len() == 0 {
+        if b.is_empty() {
             a.to_string()
         } else {
-            if a.len() == 0 {
+            if a.is_empty() {
                 format!("{}_", b)
             } else {
                 format!("{}{}_", a, b)

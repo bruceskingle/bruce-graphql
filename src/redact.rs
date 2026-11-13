@@ -1,4 +1,4 @@
-/// Hiding secrets such as passwords, API keys and tokens in verbose output.
+//! Hiding secrets such as passwords, API keys and tokens in verbose output.
 
 /// What a secret is replaced with.
 pub const REDACTED: &str = "<redacted>";

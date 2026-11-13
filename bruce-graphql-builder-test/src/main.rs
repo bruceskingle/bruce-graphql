@@ -4,15 +4,21 @@ use bruce_graphql::GraphQLResponse;
 use display_json::DisplayAsJsonPretty;
 use serde::{Deserialize, Serialize};
 
+/// A response of the app's own, never made, which shows that GraphQLResponse can be implemented outside bruce-graphql.
+#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty)]
 struct Foo {}
 
 impl GraphQLResponse for Foo {}
 
+// The generated file's module is named as the file, so as this one.
+#[allow(clippy::module_inception)]
 mod example {
     include!(concat!(env!("OUT_DIR"), "/example.rs"));
 }
 
+// The generated file's module is named as the file, so as this one.
+#[allow(clippy::module_inception)]
 mod rootpage {
     include!(concat!(env!("OUT_DIR"), "/rootpage.rs"));
 }

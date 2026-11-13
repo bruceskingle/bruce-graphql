@@ -95,7 +95,7 @@ dependencies = [
 
 [[package]]
 name = "bruce-graphql-builder"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "graphql-parser",
  "indexmap",
@@ -104,7 +104,7 @@ dependencies = [
 
 [[package]]
 name = "bruce-graphql-builder-test"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "bruce-graphql",
  "bruce-graphql-builder",

@@ -1,3 +1,6 @@
+// The model's types are each kept in an Rc in the variant of an enum, e.g. a Scalar in TypeDefinition::Scalar, so
+// their constructors return the enum, as every caller wants.
+#![allow(clippy::new_ret_no_self)]
 use graphql_parser::Pos;
 use indexmap::IndexMap;
 use inflections::case::to_snake_case;
@@ -103,7 +106,7 @@ impl Isomorphic for ScalarType {
         match self {
             ScalarType::DefinedType(defined_type) => {
                 if let ScalarType::DefinedType(other_type) = other {
-                    defined_type.is_isomorphic(&other_type)
+                    defined_type.is_isomorphic(other_type)
                 } else {
                     false
                 }
@@ -722,7 +725,7 @@ impl Field {
         name: String,
         field_type: graphql_parser::schema::Type<'_, String>,
     ) -> Rc<Field> {
-        let ty = Type::new(registry, field_type, position.clone());
+        let ty = Type::new(registry, field_type, position);
         Rc::new(Field {
             position,
             name: registry.intern(name),
@@ -801,7 +804,7 @@ impl Schema {
                     if let Some(existing) = &model.schema_definition {
                         err.error(BuildError::DuplicateName(
                             schema_definition.position,
-                            existing.position.clone(),
+                            existing.position,
                             "Schema".to_string(),
                         ));
                     } else {
@@ -821,11 +824,11 @@ impl Schema {
                             Object::from_input_object(err, registry, ast)
                         }
                     };
-                    let position = value.position().clone();
+                    let position = *value.position();
 
                     if let Some(existing) = model.named_types.insert(value.name().clone(), value) {
                         err.error(BuildError::DuplicateName(
-                            existing.position().clone(),
+                            *existing.position(),
                             position,
                             existing.name().to_string(),
                         ));
@@ -913,7 +916,7 @@ impl Schema {
                 Some(interface)
             } else {
                 err.error(BuildError::TypeMismatchError(
-                    position.clone(),
+                    *position,
                     format!(
                         "Expected Interface for \"{}\" but found {}",
                         name,
@@ -924,7 +927,7 @@ impl Schema {
             }
         } else {
             err.error(BuildError::MissingInterfaceError(
-                position.clone(),
+                *position,
                 format!("Failed to find Interface \"{}\"", name),
             ));
             None
@@ -1191,6 +1194,7 @@ impl GenericOperation {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         err: &mut ErrorCollector,
         registry: &mut NameRegistry,
@@ -1203,12 +1207,7 @@ impl GenericOperation {
     ) -> Result<Rc<GenericOperation>, Error> {
         let name = match name {
             Some(name) => name,
-            None => {
-                return err.fail(BuildError::UnsupportedError(
-                    position.clone(),
-                    String::from("Anonymous query"),
-                ))
-            }
+            None => return err.fail(BuildError::UnsupportedError(position, String::from("Anonymous query"))),
         };
 
         let required_by_default = get_required_by_default(err, directives);
@@ -1217,7 +1216,7 @@ impl GenericOperation {
 
         if selections.is_empty() {
             return err.fail(BuildError::InvalidQueryError(
-                position.clone(),
+                position,
                 format!("Query {} has no selection set", name),
             ));
         }
@@ -1404,7 +1403,7 @@ impl Argument {
         variables: &crate::validated_model::FieldMap,
     ) -> Result<(), Error> {
         if let Value::Variable(name) = &self.value {
-            if let Some(field) = variables.get(&name) {
+            if let Some(field) = variables.get(name) {
                 if field.ty.is_optional() {
                     writeln!(
                         out,
@@ -1528,7 +1527,7 @@ impl InlineFragmentSpread {
         if selections.is_empty() {
             return Err(BuildError::InvalidQueryError(
                 fragment_definition.position,
-                format!("InlineFragmentDefinition has no selection set"),
+                "InlineFragmentDefinition has no selection set".to_string(),
             ));
         }
 
@@ -1584,21 +1583,10 @@ impl ExecutableDocument {
                 graphql_parser::query::Definition::Operation(operation_definition) => {
                     match operation_definition {
                         graphql_parser::query::OperationDefinition::SelectionSet(selection_set) => {
-                            for item in &selection_set.items {
-                                match item {
-                                    // graphql_parser::query::Selection::OptionalField(_field) => {
-                                    //     unimplemented!()
-                                    // },
-                                    graphql_parser::query::Selection::Field(_field) => {
-                                        unimplemented!()
-                                    }
-                                    graphql_parser::query::Selection::FragmentSpread(_fragment_spread) => {
-                                        unimplemented!()
-                                    }
-                                    graphql_parser::query::Selection::InlineFragment(_inline_fragment) => {
-                                        unimplemented!()
-                                    }
-                                }
+                            // A query given only as a selection set, without the `query` keyword, is not
+                            // supported yet.
+                            if !selection_set.items.is_empty() {
+                                unimplemented!("a query given only as a selection set")
                             }
                         }
                         graphql_parser::query::OperationDefinition::Query(query) => {

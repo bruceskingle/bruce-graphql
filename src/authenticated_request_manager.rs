@@ -25,22 +25,20 @@ impl<M: TokenManager, C: GraphQLCaller> AuthenticatedRequestManager<M, C> {
 
 impl<M: TokenManager, C: GraphQLCaller> GraphQLCaller for AuthenticatedRequestManager<M, C> {
     /// A token passed in is used as given, otherwise one is obtained from the token manager.
-    fn call3<Q: GraphQLQuery<R>, R: GraphQLResponse, P: ProgressMonitor + ?Sized>(
+    async fn call3<Q: GraphQLQuery<R>, R: GraphQLResponse, P: ProgressMonitor + ?Sized>(
         &self,
         query: &Q,
         token: Option<&Arc<String>>,
         progress: &P,
-    ) -> impl std::future::Future<Output = Result<R, Error>> {
-        async move {
-            let token = match token {
-                Some(token) => token.clone(),
-                None => {
-                    progress.progress(String::from("Authenticating"));
-                    self.token_manager.get_authenticator(false).await?
-                }
-            };
+    ) -> Result<R, Error> {
+        let token = match token {
+            Some(token) => token.clone(),
+            None => {
+                progress.progress(String::from("Authenticating"));
+                self.token_manager.get_authenticator(false).await?
+            }
+        };
 
-            self.request_manager.call3(query, Some(&token), progress).await
-        }
+        self.request_manager.call3(query, Some(&token), progress).await
     }
 }

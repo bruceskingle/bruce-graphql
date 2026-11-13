@@ -9,7 +9,7 @@ use std::{env, error::Error, fs::File, path::Path, process};
 //     }
 // }
 fn main() {
-    if let Err(_) = build() {
+    if build().is_err() {
         process::exit(1);
         // panic!("Build failed {}", error);
     }
@@ -28,10 +28,11 @@ fn build() -> Result<(), Box<dyn Error>> {
         writeln!(
             file,
             r#"
+#[allow(dead_code)]
 mod create_info {{
-    pub const PACKAGE_NAME: &'static str = "{}";
-    pub const PACKAGE_VERSION: &'static str = "{}";
-    pub const USER_AGENT: &'static str = "{}-{}";
+    pub const PACKAGE_NAME: &str = "{}";
+    pub const PACKAGE_VERSION: &str = "{}";
+    pub const USER_AGENT: &str = "{}-{}";
 }}
 "#,
             env!("CARGO_PKG_NAME"),

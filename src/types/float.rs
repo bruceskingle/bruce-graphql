@@ -88,8 +88,8 @@ mod tests {
 
     #[test]
     fn test_from_str() {
-        let expected = 3.14159;
-        let value = Float::from_str("3.14159").unwrap();
+        let expected = 12.375;
+        let value = Float::from_str("12.375").unwrap();
 
         assert_eq!(value.0, expected);
     }
@@ -105,14 +105,14 @@ mod tests {
 
     fn expect_parse_error(s: &str) {
         let result: Result<MyStruct, serde_json::Error> = serde_json::from_str(s);
-        if let Ok(_) = result {
+        if result.is_ok() {
             panic!("Expecting error for {}", s);
         }
     }
 
     #[test]
     fn test_parse() {
-        expect_parse(r#"{ "value": 3.14159 }"#, 3.14159);
+        expect_parse(r#"{ "value": 12.375 }"#, 12.375);
 
         expect_parse_error(r#"{ "value": 123 }"#);
         expect_parse_error(r#"{ "value": [1,2,3]] }"#);
@@ -122,8 +122,8 @@ mod tests {
     #[test]
     fn test_serialize() {
         assert_eq!(
-            serde_json::to_string(&MyStruct { value: Float(3.14159) }).unwrap(),
-            "{\"value\":3.14159}"
+            serde_json::to_string(&MyStruct { value: Float(12.375) }).unwrap(),
+            "{\"value\":12.375}"
         );
     }
 }

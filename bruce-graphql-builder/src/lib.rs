@@ -30,6 +30,12 @@ pub struct BagOfNamed<T: Print> {
     map: IndexMap<Name, Vec<T>>,
 }
 
+impl<T: Print> Default for BagOfNamed<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: Print> BagOfNamed<T> {
     pub fn new() -> BagOfNamed<T> {
         BagOfNamed { map: IndexMap::new() }
@@ -73,6 +79,12 @@ pub struct NameRegistry {
     pub atoms: IndexSet<Name>,
 }
 
+impl Default for NameRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NameRegistry {
     pub fn new() -> NameRegistry {
         NameRegistry { atoms: IndexSet::new() }
@@ -93,10 +105,7 @@ impl NameRegistry {
     }
 
     pub fn intern_option(&mut self, value: Option<String>) -> Option<Name> {
-        match value {
-            Some(value) => Some(self.intern(value)),
-            None => None,
-        }
+        value.map(|value| self.intern(value))
     }
 
     fn intern_vec(&mut self, input: Vec<String>) -> Vec<Rc<String>> {
@@ -218,15 +227,15 @@ impl BaseErrorCollector {
     }
 
     pub fn expect_ok(&self) {
-        if self.warnings.len() != 0 || self.errors.len() != 0 {
+        if !self.warnings.is_empty() || !self.errors.is_empty() {
             println!("{}", self);
             panic!("Expected OK");
         }
     }
 
     pub fn expect_one_error(&self) -> Option<&BuildError> {
-        if self.warnings.len() == 0 && self.errors.len() == 1 {
-            self.errors.get(0)
+        if self.warnings.is_empty() && self.errors.len() == 1 {
+            self.errors.first()
         } else {
             None
         }
@@ -756,7 +765,7 @@ use serde::{{Deserialize, Serialize}};
                 )?;
             }
         } else {
-            return Err(Error::BuildFailed(format!("No schema defined")));
+            return Err(Error::BuildFailed("No schema defined".to_string()));
         };
 
         Ok(())
@@ -781,15 +790,15 @@ mod tests {
         base
     }
 
-    fn do_test_schema(schema_string: &str, mut err: &mut ErrorCollector<'_>) -> Result<(), Error> {
+    fn do_test_schema(schema_string: &str, err: &mut ErrorCollector<'_>) -> Result<(), Error> {
         let types = IndexMap::new();
 
-        match parse_schema::<'_, String>(&schema_string) {
+        match parse_schema::<'_, String>(schema_string) {
             Ok(ast) => {
                 let mut registry = NameRegistry::new();
-                let parsed_schema = parsed_model::Schema::new(&mut err, &mut registry, ast)?;
+                let parsed_schema = parsed_model::Schema::new(err, &mut registry, ast)?;
 
-                validated_model::Schema::new(&mut err, &parsed_schema, &mut registry, &types)?;
+                validated_model::Schema::new(err, &parsed_schema, &mut registry, &types)?;
             }
             Err(parse_error) => {
                 err.error(BuildError::SchemaSyntaxError(parse_error.to_string()));
@@ -814,22 +823,22 @@ mod tests {
         base
     }
 
-    fn do_test_query(schema_string: &str, query: &str, mut err: &mut ErrorCollector<'_>) -> Result<(), Error> {
+    fn do_test_query(schema_string: &str, query: &str, err: &mut ErrorCollector<'_>) -> Result<(), Error> {
         let types = IndexMap::new();
 
-        match parse_schema::<'_, String>(&schema_string) {
+        match parse_schema::<'_, String>(schema_string) {
             Ok(ast) => {
                 let mut registry = NameRegistry::new();
-                let parsed_schema = parsed_model::Schema::new(&mut err, &mut registry, ast)?;
-                let validated_schema = validated_model::Schema::new(&mut err, &parsed_schema, &mut registry, &types)?;
+                let parsed_schema = parsed_model::Schema::new(err, &mut registry, ast)?;
+                let validated_schema = validated_model::Schema::new(err, &parsed_schema, &mut registry, &types)?;
                 let mut selection_manager = NameSpaceManager::new();
                 selection_manager.create_document(registry.intern_str("query_model_name"));
-                match parse_query::<String>(&query) {
+                match parse_query::<String>(query) {
                     Ok(ast) => {
                         let parsed_model =
-                            parsed_model::ExecutableDocument::new(&mut err, &mut registry, ast.definitions, "test");
+                            parsed_model::ExecutableDocument::new(err, &mut registry, ast.definitions, "test");
                         validated_model::ExecutableDocument::new(
-                            &mut err,
+                            err,
                             &mut registry,
                             &mut selection_manager,
                             &parsed_model,
@@ -924,7 +933,7 @@ type Object {
         panic!("Expected MissingObjectError");
     }
 
-    const PERSON_SCHEMA: &'static str = r#"
+    const PERSON_SCHEMA: &str = r#"
 type Query {
     person: Person
 }

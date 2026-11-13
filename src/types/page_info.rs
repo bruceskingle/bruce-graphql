@@ -49,6 +49,11 @@ impl<T> ForwardPageOf<T> {
     pub fn len(&self) -> usize {
         self.edges.len()
     }
+
+    /// Whether the page has no edges.
+    pub fn is_empty(&self) -> bool {
+        self.edges.is_empty()
+    }
 }
 
 impl<T> IntoIterator for ForwardPageOf<T> {
@@ -111,6 +116,11 @@ impl<T> ReversePageOf<T> {
     pub fn len(&self) -> usize {
         self.edges.len()
     }
+
+    /// Whether the page has no edges.
+    pub fn is_empty(&self) -> bool {
+        self.edges.is_empty()
+    }
 }
 
 impl<T> IntoIterator for ReversePageOf<T> {
@@ -172,6 +182,11 @@ pub struct PageOf<T> {
 impl<T> PageOf<T> {
     pub fn len(&self) -> usize {
         self.edges.len()
+    }
+
+    /// Whether the page has no edges.
+    pub fn is_empty(&self) -> bool {
+        self.edges.is_empty()
     }
 }
 

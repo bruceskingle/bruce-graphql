@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //     Some(&the_request_manager);
     //     // None;
 
-    let query = example::get_example::get_luke::Query::new();
+    let _query = example::get_example::get_luke::Query::new();
 
     // test(&query, request_manager).await?;
 

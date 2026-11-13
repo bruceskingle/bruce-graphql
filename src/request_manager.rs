@@ -77,7 +77,7 @@ impl RequestManager {
         // panic!("Don't send");
         // println!("NEW variables {}", params.get_variables()?);
 
-        let mut request = self.reqwest_client.post(&self.url.clone());
+        let mut request = self.reqwest_client.post(self.url.clone());
 
         if let Some(token) = token {
             request = request.header(reqwest::header::AUTHORIZATION, Self::header(token)?);
@@ -87,7 +87,7 @@ impl RequestManager {
 
         let response = request.body(serde_json::to_string(&payload).unwrap()).send().await?;
 
-        if &response.status() != &StatusCode::OK {
+        if response.status() != StatusCode::OK {
             let status = response.status();
 
             if self.verbose {

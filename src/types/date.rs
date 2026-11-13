@@ -84,7 +84,7 @@ impl PartialEq for Date {
 
 impl PartialOrd for Date {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.0.partial_cmp(&other.0)
+        Some(self.cmp(other))
     }
 }
 
@@ -200,7 +200,7 @@ mod tests {
 
     fn expect_parse_error(s: &str) {
         let result: Result<MyStruct, serde_json::Error> = serde_json::from_str(s);
-        if let Ok(_) = result {
+        if result.is_ok() {
             panic!("Expecting error for {}", s);
         }
     }
