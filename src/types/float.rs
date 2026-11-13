@@ -2,8 +2,8 @@ use std::fmt::{self, Display};
 use std::ops::Deref;
 use std::str::FromStr;
 
-use serde::{Deserializer, Serialize};
 use serde::de::{self, Visitor};
+use serde::{Deserializer, Serialize};
 
 use crate::Error;
 
@@ -12,9 +12,9 @@ use crate::Error;
 pub struct Float(f64);
 
 impl Float {
-  pub fn new(s: f64) -> Float {
-    Float(s)
-  }
+    pub fn new(s: f64) -> Float {
+        Float(s)
+    }
 }
 
 impl Deref for Float {
@@ -37,98 +37,93 @@ impl PartialOrd for Float {
     }
 }
 
-
 impl Display for Float {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-      self.0.fmt(f)
+        self.0.fmt(f)
     }
-  }
-  
-  impl FromStr for Float {
-      type Err = Error;
-  
-      fn from_str(str: &str) -> Result<Float, Self::Err> {
+}
+
+impl FromStr for Float {
+    type Err = Error;
+
+    fn from_str(str: &str) -> Result<Float, Self::Err> {
         Ok(Float(str.parse::<f64>()?))
-      }
-  }
-  
-  
-  struct FloatVisitor;
-  
-  impl<'de> Visitor<'de> for FloatVisitor {
-      type Value = Float;
-  
-      fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-          formatter.write_str("an f64 value")
-      }
-  
-      fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
-      where
-          E: de::Error,
-      {
+    }
+}
+
+struct FloatVisitor;
+
+impl<'de> Visitor<'de> for FloatVisitor {
+    type Value = Float;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("an f64 value")
+    }
+
+    fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
         Ok(Float::new(value))
-      }
-  }
-  
-  
-  impl<'de> serde::Deserialize<'de> for Float {
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Float {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-      deserializer.deserialize_f64(FloatVisitor)
-      }
-  }
-  
-  #[cfg(test)]
-  mod tests {
-      use display_json::DisplayAsJsonPretty;
+        deserializer.deserialize_f64(FloatVisitor)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use display_json::DisplayAsJsonPretty;
     use serde::Deserialize;
 
     use super::*;
-  
-  
-      #[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty)]
-      struct MyStruct {
-          value: Float,
-      }
-  
-      #[test]
-      fn test_from_str() {
-        let expected = 3.14159;
-        let value = Float::from_str("3.14159").unwrap();
-  
+
+    #[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty)]
+    struct MyStruct {
+        value: Float,
+    }
+
+    #[test]
+    fn test_from_str() {
+        let expected = 12.375;
+        let value = Float::from_str("12.375").unwrap();
+
         assert_eq!(value.0, expected);
-      }
-  
-      fn expect_parse(s: &str, expect: f64) {
+    }
+
+    fn expect_parse(s: &str, expect: f64) {
         let result: Result<MyStruct, serde_json::Error> = serde_json::from_str(s);
         if let Ok(my_struct) = result {
-          assert_eq!(my_struct.value.0, expect);
+            assert_eq!(my_struct.value.0, expect);
+        } else {
+            panic!("Expecting {:?} for {}", expect, s);
         }
-        else {
-          panic!("Expecting {:?} for {}", expect, s);
-        }
-      }
-  
-      fn expect_parse_error(s: &str) {
+    }
+
+    fn expect_parse_error(s: &str) {
         let result: Result<MyStruct, serde_json::Error> = serde_json::from_str(s);
-        if let Ok(_) = result {
-          panic!("Expecting error for {}", s);
+        if result.is_ok() {
+            panic!("Expecting error for {}", s);
         }
-      }
-  
-      #[test]
-      fn test_parse() {
-        
-        expect_parse(r#"{ "value": 3.14159 }"#, 3.14159);
-        
+    }
+
+    #[test]
+    fn test_parse() {
+        expect_parse(r#"{ "value": 12.375 }"#, 12.375);
+
         expect_parse_error(r#"{ "value": 123 }"#);
         expect_parse_error(r#"{ "value": [1,2,3]] }"#);
         expect_parse_error(r#"{ "value": {} }"#);
-      }
-  
-      #[test]
-      fn test_serialize() {
-        assert_eq!(serde_json::to_string(&MyStruct {
-          value: Float(3.14159)
-        }).unwrap(), "{\"value\":3.14159}");
-      }
-  }
+    }
+
+    #[test]
+    fn test_serialize() {
+        assert_eq!(
+            serde_json::to_string(&MyStruct { value: Float(12.375) }).unwrap(),
+            "{\"value\":12.375}"
+        );
+    }
+}

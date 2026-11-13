@@ -1,0 +1,9 @@
+query GetLuke {
+  oneOfEverything(id: "cGVvcGxlOjE=") {
+  	string
+    optionalAmount @bruce_optional
+    optionalString
+    currency @bruce_currency
+    optionalCurrency @bruce_currency
+  }
+}

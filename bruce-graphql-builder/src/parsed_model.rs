@@ -1,24 +1,27 @@
-use std::fmt::Display;
-use std::io::Write;
-use std::rc::Rc;
+// The model's types are each kept in an Rc in the variant of an enum, e.g. a Scalar in TypeDefinition::Scalar, so
+// their constructors return the enum, as every caller wants.
+#![allow(clippy::new_ret_no_self)]
 use graphql_parser::Pos;
 use indexmap::IndexMap;
 use inflections::case::to_snake_case;
+use std::fmt::Display;
+use std::io::Write;
+use std::rc::Rc;
 
-use crate::Name;
 use crate::BuildError;
 use crate::BuildWarning;
 use crate::Error;
 use crate::ErrorCollector;
 use crate::Isomorphic;
-use crate::Output;
+use crate::Name;
 use crate::NameRegistry;
+use crate::Output;
 use crate::TYPE_NAME;
 
-const MS_OPTIONAL: &str = "ms_optional";
-const MS_REQUIRED: &str = "ms_required";
-const MS_REQUIRED_BY_DEFAULT: &str = "ms_required_by_default";
-const MS_CURRENCY: &str = "ms_currency";
+const BRUCE_OPTIONAL: &str = "bruce_optional";
+const BRUCE_REQUIRED: &str = "bruce_required";
+const BRUCE_REQUIRED_BY_DEFAULT: &str = "bruce_required_by_default";
+const BRUCE_CURRENCY: &str = "bruce_currency";
 
 pub type FieldMap = IndexMap<Name, Rc<Field>>;
 
@@ -46,21 +49,21 @@ impl BuiltinType {
 
     pub fn name(&self) -> &str {
         match self {
-            BuiltinType::Int =>"Int",
-            BuiltinType::Float =>"Float",
-            BuiltinType::String =>"String",
-            BuiltinType::Boolean =>"Boolean",
-            BuiltinType::ID =>"ID",
+            BuiltinType::Int => "Int",
+            BuiltinType::Float => "Float",
+            BuiltinType::String => "String",
+            BuiltinType::Boolean => "Boolean",
+            BuiltinType::ID => "ID",
         }
     }
 
     pub fn rust_type(&self) -> &'static str {
         match self {
-            BuiltinType::Int =>"i32",
-            BuiltinType::Float =>"f64",
-            BuiltinType::String =>"String",
-            BuiltinType::Boolean =>"bool",
-            BuiltinType::ID =>"String",
+            BuiltinType::Int => "i32",
+            BuiltinType::Float => "f64",
+            BuiltinType::String => "String",
+            BuiltinType::Boolean => "bool",
+            BuiltinType::ID => "String",
         }
     }
 }
@@ -74,7 +77,7 @@ impl Display for BuiltinType {
 #[derive(Debug)]
 pub struct DefinedType {
     pub name: Name,
-    pub position: Pos
+    pub position: Pos,
 }
 
 impl Isomorphic for DefinedType {
@@ -85,9 +88,9 @@ impl Isomorphic for DefinedType {
 
 impl DefinedType {
     fn new(registry: &mut NameRegistry, v: String, position: Pos) -> ScalarType {
-        ScalarType::DefinedType(Rc::new(DefinedType{
+        ScalarType::DefinedType(Rc::new(DefinedType {
             name: registry.intern(v),
-            position
+            position,
         }))
     }
 }
@@ -103,20 +106,18 @@ impl Isomorphic for ScalarType {
         match self {
             ScalarType::DefinedType(defined_type) => {
                 if let ScalarType::DefinedType(other_type) = other {
-                    defined_type.is_isomorphic(&other_type)
-                }
-                else {
+                    defined_type.is_isomorphic(other_type)
+                } else {
                     false
                 }
-            },
+            }
             ScalarType::BuiltinType(builtin_type) => {
                 if let ScalarType::BuiltinType(other_type) = other {
                     builtin_type == other_type
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
         }
     }
 }
@@ -125,8 +126,7 @@ impl ScalarType {
     fn new(registry: &mut NameRegistry, v: String, position: Pos) -> ScalarType {
         if let Some(builtin_type) = BuiltinType::from_str(&v) {
             ScalarType::BuiltinType(builtin_type)
-        }
-        else {
+        } else {
             DefinedType::new(registry, v, position)
         }
     }
@@ -135,7 +135,9 @@ impl ScalarType {
 impl Display for ScalarType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ScalarType::DefinedType(defined_type) => write!(f, "{} (referenced at {})", &defined_type.name, &defined_type.position),
+            ScalarType::DefinedType(defined_type) => {
+                write!(f, "{} (referenced at {})", &defined_type.name, &defined_type.position)
+            }
             ScalarType::BuiltinType(builtin_type) => builtin_type.fmt(f),
         }
     }
@@ -154,27 +156,24 @@ impl Isomorphic for Type {
             Type::Scalar(scalar_type) => {
                 if let Type::Scalar(other_type) = other {
                     scalar_type.is_isomorphic(other_type)
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
             Type::Required(wrapped) => {
                 if let Type::Required(other_type) = other {
                     wrapped.is_isomorphic(other_type)
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
             Type::Array(wrapped) => {
                 if let Type::Array(other_type) = other {
                     wrapped.is_isomorphic(other_type)
-                }
-                else {
+                } else {
                     false
                 }
-            },
+            }
         }
     }
 }
@@ -183,8 +182,12 @@ impl Type {
     fn new(registry: &mut NameRegistry, parsed: graphql_parser::schema::Type<'_, String>, position: Pos) -> Type {
         match parsed {
             graphql_parser::query::Type::NamedType(name) => Type::Scalar(ScalarType::new(registry, name, position)),
-            graphql_parser::query::Type::ListType(wrapped) => Type::Array(Box::new(Type::new(registry, *wrapped, position))),
-            graphql_parser::query::Type::NonNullType(wrapped) => Type::Required(Box::new(Type::new(registry, *wrapped, position))),
+            graphql_parser::query::Type::ListType(wrapped) => {
+                Type::Array(Box::new(Type::new(registry, *wrapped, position)))
+            }
+            graphql_parser::query::Type::NonNullType(wrapped) => {
+                Type::Required(Box::new(Type::new(registry, *wrapped, position)))
+            }
         }
     }
 }
@@ -205,7 +208,8 @@ mod tests {
 
     #[test]
     fn test_builtin_types() {
-        let out = test_schema(r#"
+        let out = test_schema(
+            r#"
 type Query {
     int: Int,
     float: Float,
@@ -213,8 +217,9 @@ type Query {
     boolean: Boolean,
     id: ID,
 }
-"#);
-        out.expect_ok();        
+"#,
+        );
+        out.expect_ok();
         // if let Some(BuildError>::MissingInterfaceError(..)) = out.expect_one_error() {
         //     return;
         // }
@@ -224,7 +229,8 @@ type Query {
 
     #[test]
     fn test_builtin_required_types() {
-        let out = test_schema(r#"
+        let out = test_schema(
+            r#"
 type Query {
     int: Int!,
     float: Float!,
@@ -232,13 +238,15 @@ type Query {
     boolean: Boolean!,
     id: ID!,
 }
-"#);
-        out.expect_ok();   
+"#,
+        );
+        out.expect_ok();
     }
 
     #[test]
     fn test_builtin_multiple_types() {
-        let out = test_schema(r#"
+        let out = test_schema(
+            r#"
 type Query {
     int:[Int],
     float: [Float],
@@ -246,13 +254,15 @@ type Query {
     boolean: [Boolean],
     id: [ID],
 }
-"#);
-        out.expect_ok();   
+"#,
+        );
+        out.expect_ok();
     }
 
     #[test]
     fn test_builtin_required_multiple_types() {
-        let out = test_schema(r#"
+        let out = test_schema(
+            r#"
     type Query {
     int:[Int]!,
     float: [Float]!,
@@ -260,13 +270,15 @@ type Query {
     boolean: [Boolean]!,
     id: [ID]!,
     }
-    "#);
-        out.expect_ok();   
+    "#,
+        );
+        out.expect_ok();
     }
 
     #[test]
     fn test_builtin_required_multiple_required_types() {
-        let out = test_schema(r#"
+        let out = test_schema(
+            r#"
     type Query {
     int:[Int!]!,
     float: [Float!]!,
@@ -274,13 +286,15 @@ type Query {
     boolean: [Boolean!]!,
     id: [ID!]!,
     }
-    "#);
-        out.expect_ok();   
+    "#,
+        );
+        out.expect_ok();
     }
 
     #[test]
     fn test_builtin_required_multiple_required_types2() {
-        let out = test_schema(r#"
+        let out = test_schema(
+            r#"
     type Query {
     int:[[Int!]!],
     float: [[[Float!]!]!]!,
@@ -288,8 +302,9 @@ type Query {
     boolean: [Boolean!]!,
     id: [ID!]!,
     }
-    "#);
-        out.expect_ok();   
+    "#,
+        );
+        out.expect_ok();
     }
 }
 
@@ -389,7 +404,7 @@ impl Scalar {
             name: registry.intern(scalar_type.name),
         }))
     }
-    
+
     pub fn print(&self, out: &mut Output) -> std::io::Result<()> {
         writeln!(out, "TypeDef {{")?;
         {
@@ -443,11 +458,13 @@ impl Object {
             }
         }
         writeln!(out, "}}")
-
-        
     }
 
-    pub fn from_object(_err: &mut ErrorCollector, registry: &mut NameRegistry, object_type: graphql_parser::schema::ObjectType<'_, String>) -> TypeDefinition {
+    pub fn from_object(
+        _err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        object_type: graphql_parser::schema::ObjectType<'_, String>,
+    ) -> TypeDefinition {
         let mut fields: FieldMap = IndexMap::new();
 
         for f in object_type.fields {
@@ -463,8 +480,12 @@ impl Object {
             is_input: false,
         }))
     }
-    
-    fn from_input_object(_err: &mut ErrorCollector<'_>, registry: &mut NameRegistry, object_type: graphql_parser::schema::InputObjectType<'_, String>) -> TypeDefinition {
+
+    fn from_input_object(
+        _err: &mut ErrorCollector<'_>,
+        registry: &mut NameRegistry,
+        object_type: graphql_parser::schema::InputObjectType<'_, String>,
+    ) -> TypeDefinition {
         let mut fields = IndexMap::new();
 
         for f in object_type.fields {
@@ -481,7 +502,6 @@ impl Object {
         }))
     }
 }
-
 
 #[derive(Debug)]
 pub struct Interface {
@@ -521,14 +541,17 @@ impl Interface {
         }
         writeln!(out, "}}")
     }
-    
-    pub fn new(_err: &mut ErrorCollector, registry: &mut NameRegistry, interface_type: graphql_parser::schema::InterfaceType<'_, String>) -> TypeDefinition {
+
+    pub fn new(
+        _err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        interface_type: graphql_parser::schema::InterfaceType<'_, String>,
+    ) -> TypeDefinition {
         let mut fields = IndexMap::new();
 
         for f in interface_type.fields {
             let value = Field::from_field(registry, f);
             fields.insert(value.name.clone(), value);
-            
         }
 
         TypeDefinition::Interface(Rc::new(Interface {
@@ -568,7 +591,11 @@ impl Union {
         writeln!(out, "}}")
     }
 
-    fn new(_err: &mut ErrorCollector, registry: &mut NameRegistry, union_type: graphql_parser::schema::UnionType<'_, String>) -> TypeDefinition {
+    fn new(
+        _err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        union_type: graphql_parser::schema::UnionType<'_, String>,
+    ) -> TypeDefinition {
         TypeDefinition::Union(Rc::new(Union {
             position: union_type.position,
             name: registry.intern(union_type.name),
@@ -597,16 +624,24 @@ impl Variant {
         writeln!(out, "}}")
     }
 
-    pub fn new(_err: &mut ErrorCollector, registry: &mut NameRegistry, enum_type: graphql_parser::schema::EnumValue<'_, String>) -> Self {
+    pub fn new(
+        _err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        enum_type: graphql_parser::schema::EnumValue<'_, String>,
+    ) -> Self {
         Variant {
             name: registry.intern(enum_type.name),
             position: enum_type.position,
             description: enum_type.description,
         }
     }
-    
-    fn new_vec(err: &mut ErrorCollector, registry: &mut NameRegistry, values: Vec<graphql_parser::schema::EnumValue<'_, String>>) -> Vec<Variant> {
-        let mut result =  Vec::new();
+
+    fn new_vec(
+        err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        values: Vec<graphql_parser::schema::EnumValue<'_, String>>,
+    ) -> Vec<Variant> {
+        let mut result = Vec::new();
 
         for value in values {
             result.push(Self::new(err, registry, value));
@@ -644,7 +679,11 @@ impl Enum {
         writeln!(out, "}}")
     }
 
-    pub fn new(err: &mut ErrorCollector, registry: &mut NameRegistry, enum_type: graphql_parser::schema::EnumType<'_, String>) -> TypeDefinition {
+    pub fn new(
+        err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        enum_type: graphql_parser::schema::EnumType<'_, String>,
+    ) -> TypeDefinition {
         TypeDefinition::Enum(Rc::new(Enum {
             name: registry.intern(enum_type.name),
             position: enum_type.position,
@@ -656,7 +695,7 @@ impl Enum {
 #[derive(Debug)]
 pub struct Field {
     pub name: Name,
-    pub position:Pos,
+    pub position: Pos,
     pub ty: Type,
 }
 
@@ -678,29 +717,37 @@ impl Field {
             writeln!(out, "}}")?;
         }
         writeln!(out, "}}")
-
-        
     }
 
-    fn do_new(registry: &mut NameRegistry, position: Pos, name: String, field_type: graphql_parser::schema::Type<'_, String>) -> Rc<Field> {
-        let ty = Type::new(registry, field_type, position.clone());
+    fn do_new(
+        registry: &mut NameRegistry,
+        position: Pos,
+        name: String,
+        field_type: graphql_parser::schema::Type<'_, String>,
+    ) -> Rc<Field> {
+        let ty = Type::new(registry, field_type, position);
         Rc::new(Field {
             position,
             name: registry.intern(name),
             ty,
         })
-        
     }
 
-    pub fn from_input_value(registry: &mut NameRegistry, field: graphql_parser::schema::InputValue<'_, String>) -> Rc<Field> {
+    pub fn from_input_value(
+        registry: &mut NameRegistry,
+        field: graphql_parser::schema::InputValue<'_, String>,
+    ) -> Rc<Field> {
         Self::do_new(registry, field.position, field.name, field.value_type)
     }
 
     pub fn from_field(registry: &mut NameRegistry, field: graphql_parser::schema::Field<'_, String>) -> Rc<Field> {
         Self::do_new(registry, field.position, field.name, field.field_type)
     }
-    
-    fn from_variable(registry: &mut NameRegistry, variable: graphql_parser::query::VariableDefinition<'_, String>) -> Rc<Field> {
+
+    fn from_variable(
+        registry: &mut NameRegistry,
+        variable: graphql_parser::query::VariableDefinition<'_, String>,
+    ) -> Rc<Field> {
         Self::do_new(registry, variable.position, variable.name, variable.var_type)
     }
 }
@@ -714,7 +761,11 @@ pub struct SchemaDefinition {
 }
 
 impl SchemaDefinition {
-    fn new(_err: &mut ErrorCollector, registry: &mut NameRegistry, schema_definition: graphql_parser::schema::SchemaDefinition<'_, String>) -> Self {
+    fn new(
+        _err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        schema_definition: graphql_parser::schema::SchemaDefinition<'_, String>,
+    ) -> Self {
         SchemaDefinition {
             position: schema_definition.position,
             query: registry.intern_option(schema_definition.query),
@@ -732,7 +783,11 @@ pub struct Schema {
 }
 
 impl Schema {
-    pub fn new(err: &mut ErrorCollector, registry: &mut NameRegistry, ast: graphql_parser::schema::Document<'_, String>) -> Result<Rc<Self>, Error> {
+    pub fn new(
+        err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        ast: graphql_parser::schema::Document<'_, String>,
+    ) -> Result<Rc<Self>, Error> {
         let mut model = Schema {
             named_types: IndexMap::new(),
             schema_definition: None,
@@ -747,40 +802,57 @@ impl Schema {
             match def {
                 graphql_parser::schema::Definition::SchemaDefinition(schema_definition) => {
                     if let Some(existing) = &model.schema_definition {
-                        err.error(BuildError::DuplicateName(schema_definition.position, existing.position.clone(), "Schema".to_string()));
-                    }
-                    else {
+                        err.error(BuildError::DuplicateName(
+                            schema_definition.position,
+                            existing.position,
+                            "Schema".to_string(),
+                        ));
+                    } else {
                         model.schema_definition = Some(SchemaDefinition::new(err, registry, schema_definition));
                     }
-                },
+                }
                 graphql_parser::schema::Definition::TypeDefinition(type_definition) => {
                     let value = match type_definition {
-                        graphql_parser::schema::TypeDefinition::Scalar(scalar_type) => Scalar::new(registry, scalar_type),
+                        graphql_parser::schema::TypeDefinition::Scalar(scalar_type) => {
+                            Scalar::new(registry, scalar_type)
+                        }
                         graphql_parser::schema::TypeDefinition::Object(ast) => Object::from_object(err, registry, ast),
                         graphql_parser::schema::TypeDefinition::Interface(ast) => Interface::new(err, registry, ast),
                         graphql_parser::schema::TypeDefinition::Union(ast) => Union::new(err, registry, ast),
                         graphql_parser::schema::TypeDefinition::Enum(ast) => Enum::new(err, registry, ast),
-                        graphql_parser::schema::TypeDefinition::InputObject(ast) => Object::from_input_object(err, registry, ast),
+                        graphql_parser::schema::TypeDefinition::InputObject(ast) => {
+                            Object::from_input_object(err, registry, ast)
+                        }
                     };
-                    let position = value.position().clone();
+                    let position = *value.position();
 
                     if let Some(existing) = model.named_types.insert(value.name().clone(), value) {
-                        err.error(BuildError::DuplicateName(existing.position().clone(), position, existing.name().to_string()));
+                        err.error(BuildError::DuplicateName(
+                            *existing.position(),
+                            position,
+                            existing.name().to_string(),
+                        ));
                     }
-                },
+                }
                 graphql_parser::schema::Definition::TypeExtension(type_extension) => {
-                    err.warning(BuildWarning::UnsupportedFeature(match type_extension {
-                        graphql_parser::schema::TypeExtension::Scalar(value) => value.position,
-                        graphql_parser::schema::TypeExtension::Object(value) => value.position,
-                        graphql_parser::schema::TypeExtension::Interface(value) => value.position,
-                        graphql_parser::schema::TypeExtension::Union(value) => value.position,
-                        graphql_parser::schema::TypeExtension::Enum(value) => value.position,
-                        graphql_parser::schema::TypeExtension::InputObject(value) => value.position,
-                    }, "TypeExtension"));
-                },
+                    err.warning(BuildWarning::UnsupportedFeature(
+                        match type_extension {
+                            graphql_parser::schema::TypeExtension::Scalar(value) => value.position,
+                            graphql_parser::schema::TypeExtension::Object(value) => value.position,
+                            graphql_parser::schema::TypeExtension::Interface(value) => value.position,
+                            graphql_parser::schema::TypeExtension::Union(value) => value.position,
+                            graphql_parser::schema::TypeExtension::Enum(value) => value.position,
+                            graphql_parser::schema::TypeExtension::InputObject(value) => value.position,
+                        },
+                        "TypeExtension",
+                    ));
+                }
                 graphql_parser::schema::Definition::DirectiveDefinition(directive_definition) => {
-                    err.warning(BuildWarning::UnsupportedFeature(directive_definition.position, "DirectiveDefinition"));
-                },
+                    err.warning(BuildWarning::UnsupportedFeature(
+                        directive_definition.position,
+                        "DirectiveDefinition",
+                    ));
+                }
             }
         }
 
@@ -842,18 +914,26 @@ impl Schema {
         if let Some(type_definition) = &self.named_types.get(name) {
             if let TypeDefinition::Interface(interface) = type_definition {
                 Some(interface)
-            }
-            else {
-                err.error(BuildError::TypeMismatchError(position.clone(), format!("Expected Interface for \"{}\" but found {}", name, type_definition.type_name())));
+            } else {
+                err.error(BuildError::TypeMismatchError(
+                    *position,
+                    format!(
+                        "Expected Interface for \"{}\" but found {}",
+                        name,
+                        type_definition.type_name()
+                    ),
+                ));
                 None
             }
-        }
-        else {
-            err.error(BuildError::MissingInterfaceError(position.clone(), format!("Failed to find Interface \"{}\"", name)));
+        } else {
+            err.error(BuildError::MissingInterfaceError(
+                *position,
+                format!("Failed to find Interface \"{}\"", name),
+            ));
             None
         }
     }
-    
+
     // fn get_union(&self, err: &mut ErrorCollector, position: &Pos, name: &Name) -> Option<&Rc<Union>> {
     //     if let Some(type_definition) = &self.named_types.get(name) {
     //         if let TypeDefinition::Union(union) = type_definition {
@@ -869,7 +949,7 @@ impl Schema {
     //         None
     //     }
     // }
-    
+
     // fn get_enum(&self, err: &mut ErrorCollector, position: &Pos, name: &Name) -> Option<&Rc<Enum>> {
     //     if let Some(type_definition) = &self.named_types.get(name) {
     //         if let TypeDefinition::Enum(type_definition) = type_definition {
@@ -931,16 +1011,25 @@ pub enum Selection {
     Field(Rc<SelectionField>),
     FragmentSpread(Rc<FragmentSpread>),
     InlineFragment(Rc<InlineFragmentSpread>),
-} 
+}
 
-impl Selection{
-    pub fn new(err: &mut ErrorCollector, registry: &mut NameRegistry, selection: graphql_parser::query::Selection<'_, String>, required_by_default: bool) -> Result<Selection, BuildError> {
+impl Selection {
+    pub fn new(
+        err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        selection: graphql_parser::query::Selection<'_, String>,
+        required_by_default: bool,
+    ) -> Result<Selection, BuildError> {
         Ok(match selection {
-            // graphql_parser::query::Selection::OptionalField(field) => 
+            // graphql_parser::query::Selection::OptionalField(field) =>
             //     SelectionField::new(err, registry, *field, required_by_default),
-            graphql_parser::query::Selection::Field(field) => SelectionField::new(err, registry, field, required_by_default),
+            graphql_parser::query::Selection::Field(field) => {
+                SelectionField::new(err, registry, field, required_by_default)
+            }
             graphql_parser::query::Selection::FragmentSpread(fragment) => FragmentSpread::new(err, registry, fragment),
-            graphql_parser::query::Selection::InlineFragment(inline_fragment) => InlineFragmentSpread::new(err, registry, inline_fragment)?,
+            graphql_parser::query::Selection::InlineFragment(inline_fragment) => {
+                InlineFragmentSpread::new(err, registry, inline_fragment)?
+            }
         })
     }
 
@@ -965,8 +1054,12 @@ pub struct SelectionField {
 }
 
 impl SelectionField {
-    pub fn new(err: &mut ErrorCollector, registry: &mut NameRegistry, field: graphql_parser::query::Field<'_, String>, required_by_default: bool) -> Selection {
-        
+    pub fn new(
+        err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        field: graphql_parser::query::Field<'_, String>,
+        required_by_default: bool,
+    ) -> Selection {
         // println!("!! SelectionField {} required_by_default={} {:?}", field.name, required_by_default, field);
 
         let mut force_nonnull = required_by_default;
@@ -974,30 +1067,29 @@ impl SelectionField {
         let mut currency = false;
         // println!("!! check {} directives", field.directives.len());
         for directive in field.directives {
-            // println!("!! directive name = '{}' test '{}'", directive.name, MS_OPTIONAL);
+            // println!("!! directive name = '{}' test '{}'", directive.name, BRUCE_OPTIONAL);
             match directive.name.as_str() {
-                MS_OPTIONAL => {
+                BRUCE_OPTIONAL => {
                     // println!("!! ITS OPTIONAL");
                     force_nonnull = false;
-                },
-                MS_REQUIRED => {
-                    // println!("!! ITS MS_REQUIRED");
+                }
+                BRUCE_REQUIRED => {
+                    // println!("!! ITS BRUCE_REQUIRED");
                     force_nonnull = true;
-                },
-                MS_REQUIRED_BY_DEFAULT => {
-                    // println!("!! ITS MS_REQUIRED_BY_DEFAULT");
+                }
+                BRUCE_REQUIRED_BY_DEFAULT => {
+                    // println!("!! ITS BRUCE_REQUIRED_BY_DEFAULT");
                     new_required_by_default = true;
-                },
-                MS_CURRENCY => {
+                }
+                BRUCE_CURRENCY => {
                     currency = true;
-                },
+                }
                 _ => {
                     err.warning(BuildWarning::UnsupportedDirective(directive.position, directive.name));
                 }
             }
         }
-        
-        
+
         Selection::Field(Rc::new(SelectionField {
             name: registry.intern(field.name),
             alias: registry.intern_option(field.alias),
@@ -1037,7 +1129,7 @@ impl SelectionField {
 #[derive(Debug)]
 pub enum OperationType {
     Query,
-    Mutation
+    Mutation,
 }
 
 impl Display for OperationType {
@@ -1068,22 +1160,54 @@ pub struct GenericOperation {
 }
 
 impl GenericOperation {
-    pub fn from_query(err: &mut ErrorCollector, registry: &mut NameRegistry, query: graphql_parser::query::Query<'_, String>) -> Result<Rc<GenericOperation>, Error> {
-        Self::new(err, registry, OperationType::Query, query.name, query.position, query.selection_set, query.variable_definitions, query.directives)
+    pub fn from_query(
+        err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        query: graphql_parser::query::Query<'_, String>,
+    ) -> Result<Rc<GenericOperation>, Error> {
+        Self::new(
+            err,
+            registry,
+            OperationType::Query,
+            query.name,
+            query.position,
+            query.selection_set,
+            query.variable_definitions,
+            query.directives,
+        )
     }
 
-    pub fn from_mutation(err: &mut ErrorCollector, registry: &mut NameRegistry, query: graphql_parser::query::Mutation<'_, String>) -> Result<Rc<GenericOperation>, Error> {
-        Self::new(err, registry, OperationType::Mutation, query.name, query.position, query.selection_set, query.variable_definitions, query.directives)
+    pub fn from_mutation(
+        err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        query: graphql_parser::query::Mutation<'_, String>,
+    ) -> Result<Rc<GenericOperation>, Error> {
+        Self::new(
+            err,
+            registry,
+            OperationType::Mutation,
+            query.name,
+            query.position,
+            query.selection_set,
+            query.variable_definitions,
+            query.directives,
+        )
     }
 
-    pub fn new(err: &mut ErrorCollector, registry: &mut NameRegistry, operation: OperationType, name: Option<String>, position: Pos, 
-        selection_set: graphql_parser::query::SelectionSet<'_, String>, 
-        variable_definitions: Vec<graphql_parser::query::VariableDefinition<'_, String>>, directives: Vec<graphql_parser::query::Directive<'_, String>>) -> Result<Rc<GenericOperation>, Error> {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        operation: OperationType,
+        name: Option<String>,
+        position: Pos,
+        selection_set: graphql_parser::query::SelectionSet<'_, String>,
+        variable_definitions: Vec<graphql_parser::query::VariableDefinition<'_, String>>,
+        directives: Vec<graphql_parser::query::Directive<'_, String>>,
+    ) -> Result<Rc<GenericOperation>, Error> {
         let name = match name {
             Some(name) => name,
-            None => {
-                return err.fail(BuildError::UnsupportedError(position.clone(), String::from("Anonymous query")))
-            },
+            None => return err.fail(BuildError::UnsupportedError(position, String::from("Anonymous query"))),
         };
 
         let required_by_default = get_required_by_default(err, directives);
@@ -1091,7 +1215,10 @@ impl GenericOperation {
         let variables = build_variables(err, registry, variable_definitions);
 
         if selections.is_empty() {
-            return err.fail(BuildError::InvalidQueryError(position.clone(), format!("Query {} has no selection set", name)));
+            return err.fail(BuildError::InvalidQueryError(
+                position,
+                format!("Query {} has no selection set", name),
+            ));
         }
 
         Ok(Rc::new(GenericOperation {
@@ -1126,17 +1253,19 @@ impl GenericOperation {
     }
 }
 
-fn get_required_by_default(err: &mut ErrorCollector, directives: Vec<graphql_parser::query::Directive<'_, String>>) -> bool {
-
+fn get_required_by_default(
+    err: &mut ErrorCollector,
+    directives: Vec<graphql_parser::query::Directive<'_, String>>,
+) -> bool {
     let mut required_by_default = false;
     // println!("!!! check directives");
     for directive in directives {
-        // println!("!!! directive name = '{}' test '{}'", directive.name, MS_REQUIRED_BY_DEFAULT);
+        // println!("!!! directive name = '{}' test '{}'", directive.name, BRUCE_REQUIRED_BY_DEFAULT);
         match directive.name.as_str() {
-            MS_REQUIRED_BY_DEFAULT => {
-                // println!("!! ITS MS_REQUIRED_BY_DEFAULT");
+            BRUCE_REQUIRED_BY_DEFAULT => {
+                // println!("!! ITS BRUCE_REQUIRED_BY_DEFAULT");
                 required_by_default = true;
-            },
+            }
             _ => {
                 err.warning(BuildWarning::UnsupportedDirective(directive.position, directive.name));
             }
@@ -1146,9 +1275,11 @@ fn get_required_by_default(err: &mut ErrorCollector, directives: Vec<graphql_par
     required_by_default
 }
 
-
-
-fn build_variables(_err: &mut ErrorCollector, registry: &mut NameRegistry, variable_definitions: Vec<graphql_parser::query::VariableDefinition<'_, String>>) -> FieldMap {
+fn build_variables(
+    _err: &mut ErrorCollector,
+    registry: &mut NameRegistry,
+    variable_definitions: Vec<graphql_parser::query::VariableDefinition<'_, String>>,
+) -> FieldMap {
     let mut variables = IndexMap::new();
 
     for variable in variable_definitions {
@@ -1159,8 +1290,12 @@ fn build_variables(_err: &mut ErrorCollector, registry: &mut NameRegistry, varia
     variables
 }
 
-fn build_selections(err: &mut ErrorCollector, registry: &mut NameRegistry, selection_set: graphql_parser::query::SelectionSet<'_, String>, required_by_default: bool) -> Rc<SelectionList> {
-
+fn build_selections(
+    err: &mut ErrorCollector,
+    registry: &mut NameRegistry,
+    selection_set: graphql_parser::query::SelectionSet<'_, String>,
+    required_by_default: bool,
+) -> Rc<SelectionList> {
     let mut selections = Vec::new();
 
     for selection in selection_set.items {
@@ -1168,15 +1303,17 @@ fn build_selections(err: &mut ErrorCollector, registry: &mut NameRegistry, selec
             Ok(selection) => selections.push(selection),
             Err(error) => err.error(error),
         }
-        
     }
 
-    Rc::new( SelectionList{
-        selections,
-    })
+    Rc::new(SelectionList { selections })
 }
 
-fn build_arguments(err: &mut ErrorCollector, registry: &mut NameRegistry, arguments: Vec<(String, graphql_parser::query::Value<'_, String>)>, position: Pos) -> Vec<Rc<Argument>> {
+fn build_arguments(
+    err: &mut ErrorCollector,
+    registry: &mut NameRegistry,
+    arguments: Vec<(String, graphql_parser::query::Value<'_, String>)>,
+    position: Pos,
+) -> Vec<Rc<Argument>> {
     let mut result = Vec::new();
 
     for (name, value) in arguments {
@@ -1196,7 +1333,11 @@ pub enum Value {
 }
 
 impl Value {
-    pub fn new(_err: &mut ErrorCollector, registry: &mut NameRegistry, value: graphql_parser::query::Value<'_, String> ) -> Self {
+    pub fn new(
+        _err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        value: graphql_parser::query::Value<'_, String>,
+    ) -> Self {
         match value {
             graphql_parser::query::Value::Variable(name) => Value::Variable(registry.intern(name)),
             graphql_parser::query::Value::Int(number) => Value::Int(number.as_i64().unwrap()),
@@ -1223,7 +1364,6 @@ impl Display for Value {
     }
 }
 
-
 #[derive(Debug)]
 pub struct Argument {
     pub name: Name,
@@ -1232,7 +1372,13 @@ pub struct Argument {
 }
 
 impl Argument {
-    pub fn new(err: &mut ErrorCollector, registry: &mut NameRegistry, name: String, value: graphql_parser::query::Value<'_, String>, position: Pos) -> Rc<Self> {
+    pub fn new(
+        err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        name: String,
+        value: graphql_parser::query::Value<'_, String>,
+        position: Pos,
+    ) -> Rc<Self> {
         Rc::new(Argument {
             name: registry.intern(name),
             value: Value::new(err, registry, value),
@@ -1250,27 +1396,34 @@ impl Argument {
         }
         writeln!(out, "}}")
     }
-    
-    pub fn generate_query(&self, out: &mut Output<'_>, variables: &crate::validated_model::FieldMap) -> Result<(), Error> {
+
+    pub fn generate_query(
+        &self,
+        out: &mut Output<'_>,
+        variables: &crate::validated_model::FieldMap,
+    ) -> Result<(), Error> {
         if let Value::Variable(name) = &self.value {
-            if let Some(field) = variables.get(&name) {
+            if let Some(field) = variables.get(name) {
                 if field.ty.is_optional() {
-                    writeln!(out, "if self.variables.{}_.is_some() {{", to_snake_case(&field.parsed.name))?;
+                    writeln!(
+                        out,
+                        "if self.variables.{}_.is_some() {{",
+                        to_snake_case(&field.parsed.name)
+                    )?;
                     writeln!(out, "    buf.push_str(\"{}: {},\\n\");", self.name, self.value)?;
                     writeln!(out, "}}")?;
-                }
-                else {
+                } else {
                     writeln!(out, "buf.push_str(\"{}: {},\\n\");", self.name, self.value)?;
                 }
+            } else {
+                return Err(Error::BuildFailed(
+                    BuildError::MissingVariableError(self.position, name.to_string()).to_string(),
+                ));
             }
-            else {
-                return Err(Error::BuildFailed(BuildError::MissingVariableError(self.position, name.to_string()).to_string()))
-            }
-        }
-        else {
+        } else {
             writeln!(out, "buf.push_str(\"{}: {},\\n\");", self.name, self.value)?;
         }
-        
+
         Ok(())
     }
 }
@@ -1283,13 +1436,20 @@ pub struct FragmentDefinition {
     pub type_condition: Name,
 }
 
-impl FragmentDefinition{
-    pub fn new(err: &mut ErrorCollector, registry: &mut NameRegistry, fragment_definition: graphql_parser::query::FragmentDefinition<'_, String>) -> Result<Rc<Self>, Error> {
+impl FragmentDefinition {
+    pub fn new(
+        err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        fragment_definition: graphql_parser::query::FragmentDefinition<'_, String>,
+    ) -> Result<Rc<Self>, Error> {
         let required_by_default = get_required_by_default(err, fragment_definition.directives);
         let selections = build_selections(err, registry, fragment_definition.selection_set, required_by_default);
 
         if selections.is_empty() {
-            return err.fail(BuildError::InvalidQueryError(fragment_definition.position, format!("FragmentDefinition {} has no selection set", &fragment_definition.name)));
+            return err.fail(BuildError::InvalidQueryError(
+                fragment_definition.position,
+                format!("FragmentDefinition {} has no selection set", &fragment_definition.name),
+            ));
         }
 
         let type_condition = match fragment_definition.type_condition {
@@ -1325,7 +1485,11 @@ pub struct FragmentSpread {
 }
 
 impl FragmentSpread {
-    pub fn new(_err: &mut ErrorCollector, registry: &mut NameRegistry, fragment: graphql_parser::query::FragmentSpread<'_, String>) -> Selection {
+    pub fn new(
+        _err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        fragment: graphql_parser::query::FragmentSpread<'_, String>,
+    ) -> Selection {
         Selection::FragmentSpread(Rc::new(FragmentSpread {
             name: registry.intern(fragment.fragment_name),
             position: fragment.position,
@@ -1344,7 +1508,6 @@ impl FragmentSpread {
     }
 }
 
-
 #[derive(Debug)]
 pub struct InlineFragmentSpread {
     pub position: Pos,
@@ -1352,13 +1515,20 @@ pub struct InlineFragmentSpread {
     pub type_condition: Option<Name>,
 }
 
-impl InlineFragmentSpread{
-    pub fn new(err: &mut ErrorCollector, registry: &mut NameRegistry, fragment_definition: graphql_parser::query::InlineFragment<'_, String>) -> Result<Selection, BuildError> {
+impl InlineFragmentSpread {
+    pub fn new(
+        err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        fragment_definition: graphql_parser::query::InlineFragment<'_, String>,
+    ) -> Result<Selection, BuildError> {
         let required_by_default = get_required_by_default(err, fragment_definition.directives);
         let selections = build_selections(err, registry, fragment_definition.selection_set, required_by_default);
 
         if selections.is_empty() {
-            return Err(BuildError::InvalidQueryError(fragment_definition.position, format!("InlineFragmentDefinition has no selection set")));
+            return Err(BuildError::InvalidQueryError(
+                fragment_definition.position,
+                "InlineFragmentDefinition has no selection set".to_string(),
+            ));
         }
 
         let type_condition = match fragment_definition.type_condition {
@@ -1393,12 +1563,16 @@ pub struct ExecutableDocument {
     pub name: Name,
     pub fragments: IndexMap<Name, Rc<FragmentDefinition>>,
     pub queries: Vec<Rc<GenericOperation>>,
-    pub mutations: Vec<Rc<GenericOperation>>
+    pub mutations: Vec<Rc<GenericOperation>>,
 }
 
 impl ExecutableDocument {
-    pub fn new(err: &mut ErrorCollector, registry: &mut NameRegistry, definitions: Vec<graphql_parser::query::Definition<'_, String>>, model_name: &str) -> Rc<Self> {
-
+    pub fn new(
+        err: &mut ErrorCollector,
+        registry: &mut NameRegistry,
+        definitions: Vec<graphql_parser::query::Definition<'_, String>>,
+        model_name: &str,
+    ) -> Rc<Self> {
         let name = to_snake_case(model_name);
         let mut fragments = IndexMap::new();
         let mut queries = Vec::new();
@@ -1409,58 +1583,41 @@ impl ExecutableDocument {
                 graphql_parser::query::Definition::Operation(operation_definition) => {
                     match operation_definition {
                         graphql_parser::query::OperationDefinition::SelectionSet(selection_set) => {
-                            for item in &selection_set.items {
-                                match item {
-
-                                    // graphql_parser::query::Selection::OptionalField(_field) => {
-                                    //     unimplemented!()
-                                    // },
-
-                                    graphql_parser::query::Selection::Field(_field) => {
-                                        unimplemented!()
-                                        
-                                    },
-                                    graphql_parser::query::Selection::FragmentSpread(_fragment_spread) => {
-                                        unimplemented!()
-                                        
-                                    },
-                                    graphql_parser::query::Selection::InlineFragment(_inline_fragment) => {
-                                        unimplemented!()
-                                        
-                                    },
-                                }
+                            // A query given only as a selection set, without the `query` keyword, is not
+                            // supported yet.
+                            if !selection_set.items.is_empty() {
+                                unimplemented!("a query given only as a selection set")
                             }
-                        },
+                        }
                         graphql_parser::query::OperationDefinition::Query(query) => {
-                            if let  Ok(query) = GenericOperation::from_query(err, registry, query) {
+                            if let Ok(query) = GenericOperation::from_query(err, registry, query) {
                                 queries.push(query);
                             }
-                        },
+                        }
                         graphql_parser::query::OperationDefinition::Mutation(mutation) => {
                             if let Ok(mutation) = GenericOperation::from_mutation(err, registry, mutation) {
                                 mutations.push(mutation);
                             }
-                        },
+                        }
                         graphql_parser::query::OperationDefinition::Subscription(_subscription) => {
                             unimplemented!()
-                            
-                        },
+                        }
                     }
-                },
+                }
                 graphql_parser::query::Definition::Fragment(fragment_definition) => {
                     if let Ok(fragment) = FragmentDefinition::new(err, registry, fragment_definition) {
                         fragments.insert(fragment.name.clone(), fragment);
                     }
-                },
+                }
             }
         }
 
         Rc::new(ExecutableDocument {
-                name: registry.intern(name),
-                fragments,
-                queries,
-                mutations,
-            })
+            name: registry.intern(name),
+            fragments,
+            queries,
+            mutations,
+        })
     }
 
     pub fn print(&self, out: &mut Output) -> std::io::Result<()> {

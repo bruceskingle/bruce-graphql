@@ -7,18 +7,18 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in library 'sparko_graphql_builder'",
+            "name": "Debug unit tests in library 'bruce_graphql_builder'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
                     "--lib",
-                    "--package=sparko_graphql_builder",
+                    "--package=bruce-graphql-builder",
                     "--",
                     "--test-threads=1"
                 ],
                 "filter": {
-                    "name": "sparko_graphql_builder",
+                    "name": "bruce_graphql_builder",
                     "kind": "lib"
                 }
             },
@@ -28,16 +28,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in library 'sparko_graphql_core'",
+            "name": "Debug unit tests in library 'bruce_graphql_core'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
                     "--lib",
-                    "--package=sparko_graphql_core"
+                    "--package=bruce-graphql-core"
                 ],
                 "filter": {
-                    "name": "sparko_graphql_core",
+                    "name": "bruce_graphql_core",
                     "kind": "lib"
                 }
             },
@@ -47,16 +47,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in library 'sparko_graphql'",
+            "name": "Debug unit tests in library 'bruce_graphql'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
                     "--lib",
-                    "--package=sparko_graphql"
+                    "--package=bruce-graphql"
                 ],
                 "filter": {
-                    "name": "sparko_graphql",
+                    "name": "bruce_graphql",
                     "kind": "lib"
                 }
             },
@@ -71,7 +71,7 @@
                 "args": [
                     "build",
                     "--bin=test_build",
-                    "--package=sparko_graphql_builder"
+                    "--package=bruce-graphql-builder"
                 ],
                 "filter": {
                     "name": "test_build",
@@ -81,7 +81,7 @@
             "env": {
                 "OUT_DIR": "/tmp"
             },
-            "cwd": "${workspaceFolder}/sparko_graphql_builder"
+            "cwd": "${workspaceFolder}/bruce-graphql-builder"
         },
         {
             "type": "lldb",
@@ -91,7 +91,7 @@
                 "args": [
                     "build",
                     "--bin=test_swapi",
-                    "--package=sparko_graphql_builder_test"
+                    "--package=bruce-graphql-builder-test"
                 ],
                 "filter": {
                     "name": "test_swapi",
@@ -101,7 +101,7 @@
             "env": {
                 "OUT_DIR": "/tmp"
             },
-            "cwd": "${workspaceFolder}/sparko_graphql_builder_test"
+            "cwd": "${workspaceFolder}/bruce-graphql-builder-test"
         }
     ]
 }

@@ -5,10 +5,12 @@ use serde::{Deserialize, Serialize};
 
 pub use error::{Error, GraphQLJsonError};
 
-
-pub mod types;
 mod traits;
-pub use traits::{ParamBuffer,GraphQLQueryParams,GraphQLType,TokenManager, GraphQLCaller, ProgressMonitor, NoProgress, GraphQL, NoParams};
+pub mod types;
+pub use traits::{
+    GraphQL, GraphQLCaller, GraphQLQueryParams, GraphQLType, NoParams, NoProgress, ParamBuffer, ProgressMonitor,
+    TokenManager,
+};
 
 pub mod redact;
 mod request_manager;
@@ -25,14 +27,11 @@ pub trait GraphQLQuery<R: GraphQLResponse> {
     fn get_variables(&self) -> Result<std::string::String, serde_json::Error>;
 }
 
-pub trait GraphQLResponse: serde::de::DeserializeOwned + Serialize {
-
-}
-
+pub trait GraphQLResponse: serde::de::DeserializeOwned + Serialize {}
 
 #[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty)]
 #[serde(rename_all = "camelCase")]
 struct GraphQLResponseStructure {
-   errors: Option<Vec<GraphQLJsonError>>,
-   data:   serde_json::Value,
+    errors: Option<Vec<GraphQLJsonError>>,
+    data: serde_json::Value,
 }

@@ -78,6 +78,46 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b048fb63fd8b5923fc5aa7b340d8e156aec7ec02f0c78fa8a6ddc2613f6f71de"
 
 [[package]]
+name = "bruce-graphql"
+version = "0.5.0"
+dependencies = [
+ "display_json",
+ "indexmap",
+ "iso_currency",
+ "once_cell",
+ "reqwest 0.12.7",
+ "serde",
+ "serde_json",
+ "time",
+ "time-tz",
+ "trybuild",
+]
+
+[[package]]
+name = "bruce-graphql-builder"
+version = "0.5.0"
+dependencies = [
+ "graphql-parser",
+ "indexmap",
+ "inflections",
+]
+
+[[package]]
+name = "bruce-graphql-builder-test"
+version = "0.5.0"
+dependencies = [
+ "bruce-graphql",
+ "bruce-graphql-builder",
+ "display_json",
+ "reqwest 0.11.27",
+ "rpassword",
+ "serde",
+ "serde_json",
+ "time",
+ "tokio",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1343,46 +1383,6 @@ checksum = "ce305eb0b4296696835b71df73eb912e0f1ffd2556a501fcede6e0c50349191c"
 dependencies = [
  "libc",
  "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "sparko_graphql"
-version = "0.4.4"
-dependencies = [
- "display_json",
- "indexmap",
- "iso_currency",
- "once_cell",
- "reqwest 0.12.7",
- "serde",
- "serde_json",
- "time",
- "time-tz",
- "trybuild",
-]
-
-[[package]]
-name = "sparko_graphql_builder"
-version = "0.1.0"
-dependencies = [
- "graphql-parser",
- "indexmap",
- "inflections",
-]
-
-[[package]]
-name = "sparko_graphql_builder_test"
-version = "0.1.0"
-dependencies = [
- "display_json",
- "reqwest 0.11.27",
- "rpassword",
- "serde",
- "serde_json",
- "sparko_graphql",
- "sparko_graphql_builder",
- "time",
- "tokio",
 ]
 
 [[package]]

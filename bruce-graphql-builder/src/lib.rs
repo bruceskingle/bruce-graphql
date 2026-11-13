@@ -1,18 +1,18 @@
-use graphql_parser::{parse_query, Pos};
 use graphql_parser::schema::parse_schema;
+use graphql_parser::{parse_query, Pos};
 use indexmap::{IndexMap, IndexSet};
 use inflections::case::to_snake_case;
-use validated_model::NameSpaceManager;
 use std::fmt::Display;
 use std::fs::File;
 use std::io::BufWriter;
+use std::io::Write;
 use std::path::Path;
 use std::rc::Rc;
 use std::{env, fs};
-use std::io::Write;
+use validated_model::NameSpaceManager;
 
-mod utils;
 mod parsed_model;
+mod utils;
 mod validated_model;
 
 pub const STARS: &str = "***************************************************************************************************************************************************";
@@ -30,24 +30,27 @@ pub struct BagOfNamed<T: Print> {
     map: IndexMap<Name, Vec<T>>,
 }
 
+impl<T: Print> Default for BagOfNamed<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: Print> BagOfNamed<T> {
     pub fn new() -> BagOfNamed<T> {
-        BagOfNamed {
-            map: IndexMap::new(),
-        }
+        BagOfNamed { map: IndexMap::new() }
     }
-    
+
     pub fn insert(&mut self, name: &Name, value: T) {
         let list = if let Some(existing) = self.map.get_mut(name) {
             existing
-        }
-        else {
+        } else {
             self.map.insert(name.clone(), Vec::new());
             self.map.get_mut(name).unwrap()
         };
         list.push(value);
     }
-    
+
     pub fn print(&self, out: &mut Output) -> std::io::Result<()> {
         writeln!(out, "{{")?;
         {
@@ -76,18 +79,21 @@ pub struct NameRegistry {
     pub atoms: IndexSet<Name>,
 }
 
+impl Default for NameRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NameRegistry {
     pub fn new() -> NameRegistry {
-        NameRegistry {
-            atoms: IndexSet::new(),
-        }
+        NameRegistry { atoms: IndexSet::new() }
     }
 
     pub fn intern(&mut self, value: String) -> Name {
         if let Some(atom) = self.atoms.get(&value) {
             atom.clone()
-        }
-        else {
+        } else {
             let new_value = Rc::new(value);
             self.atoms.insert(new_value.clone());
             new_value
@@ -99,19 +105,16 @@ impl NameRegistry {
     }
 
     pub fn intern_option(&mut self, value: Option<String>) -> Option<Name> {
-        match value {
-            Some(value) => Some(self.intern(value)),
-            None => None,
-        }
+        value.map(|value| self.intern(value))
     }
-    
+
     fn intern_vec(&mut self, input: Vec<String>) -> Vec<Rc<String>> {
         let mut result = Vec::new();
-    
+
         for value in input {
             result.push(self.intern(value));
         }
-    
+
         result
     }
 }
@@ -121,13 +124,12 @@ pub enum Error {
     InternalError(Box<dyn std::error::Error>),
     FatalBuildError(&'static str),
     BuildFailed(String),
-    BuildErrors{errors: u32, warnings: u32},
-    FileReadError{file_name: String, reason: std::io::Error},
-    FileWriteError{file_name: String, reason: std::io::Error},
+    BuildErrors { errors: u32, warnings: u32 },
+    FileReadError { file_name: String, reason: std::io::Error },
+    FileWriteError { file_name: String, reason: std::io::Error },
 }
 
-impl std::error::Error for Error {
-}
+impl std::error::Error for Error {}
 
 impl From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
@@ -220,26 +222,24 @@ impl BaseErrorCollector {
         Self::new(String::from("Test"))
     }
 
-    pub fn new_error_collector(&mut self) -> ErrorCollector<'_>  {
+    pub fn new_error_collector(&mut self) -> ErrorCollector<'_> {
         ErrorCollector::new(self)
     }
 
     pub fn expect_ok(&self) {
-        if self.warnings.len() != 0 || self.errors.len() != 0 {
+        if !self.warnings.is_empty() || !self.errors.is_empty() {
             println!("{}", self);
             panic!("Expected OK");
         }
     }
 
     pub fn expect_one_error(&self) -> Option<&BuildError> {
-        if self.warnings.len() == 0 && self.errors.len() == 1 {
-            self.errors.get(0)
-        }
-        else {
+        if self.warnings.is_empty() && self.errors.len() == 1 {
+            self.errors.first()
+        } else {
             None
         }
     }
-
 
     fn report_errors(&self) {
         if !self.errors.is_empty() {
@@ -249,19 +249,18 @@ impl BaseErrorCollector {
             }
         }
 
-        if ! self.warnings.is_empty() {
+        if !self.warnings.is_empty() {
             println!("Warnings");
             for item in &self.warnings {
                 println!("    {}", item);
             }
         }
     }
-    
+
     fn report(&self, f: &mut dyn Write) -> std::io::Result<()> {
         if self.errors.is_empty() {
-            writeln!(f, "//{} built OK", self.file_name)?;
-        }
-        else {
+            writeln!(f, "// {} built OK", self.file_name)?;
+        } else {
             // writeln!(f, "compile_warning!(\"{} built with Errors\");", self.file_name)?;
             println!("cargo:rustc-cfg=graphql_generation_error");
             writeln!(f, "compile_error!(\"{} built with Errors\");", self.file_name)?;
@@ -273,7 +272,7 @@ impl BaseErrorCollector {
             writeln!(f, "{}/", STARS)?;
         }
 
-        if ! self.warnings.is_empty() {
+        if !self.warnings.is_empty() {
             writeln!(f, "/{}", STARS)?;
             writeln!(f, "Warnings")?;
             for item in &self.warnings {
@@ -329,20 +328,24 @@ impl ErrorCollector<'_> {
     pub fn ok_then<T>(&self, ok: &dyn Fn() -> T) -> Result<T, Error> {
         if self.errors == 0 {
             Ok(ok())
+        } else {
+            Err(Error::BuildErrors {
+                errors: self.errors,
+                warnings: self.warnings,
+            })
         }
-        else {
-            Err(Error::BuildErrors { errors: self.errors, warnings: self.warnings })
-        }
-    } 
+    }
 
     pub fn ok<T>(&self, ok: T) -> Result<T, Error> {
         if self.errors == 0 {
             Ok(ok)
+        } else {
+            Err(Error::BuildErrors {
+                errors: self.errors,
+                warnings: self.warnings,
+            })
         }
-        else {
-            Err(Error::BuildErrors { errors: self.errors, warnings: self.warnings })
-        }
-    } 
+    }
 }
 
 pub struct Output<'a> {
@@ -366,7 +369,7 @@ impl Write for Output<'_> {
         let mut nbytes: usize = 0;
         let mut s = 0;
 
-        while s< buf.len() {
+        while s < buf.len() {
             if self.start_of_line {
                 let mut t: usize = 0;
 
@@ -387,8 +390,7 @@ impl Write for Output<'_> {
                 nbytes += self.base.write(&buf[s..e])?;
 
                 self.start_of_line = true;
-            }
-            else {
+            } else {
                 nbytes += self.base.write(&buf[s..e])?;
             }
             s = e;
@@ -405,18 +407,17 @@ enum BaseOutput {
     File(BufWriter<File>),
     Stdout,
 
-#[cfg(test)]
-#[allow(dead_code)]
+    #[cfg(test)]
+    #[allow(dead_code)]
     Buffer(Vec<u8>),
 }
 
 impl Display for BaseOutput {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-
         writeln!(f, "Output")?;
         match self {
-            BaseOutput::File(_) => {},
-            BaseOutput::Stdout => {},
+            BaseOutput::File(_) => {}
+            BaseOutput::Stdout => {}
             #[cfg(test)]
             BaseOutput::Buffer(out) => {
                 writeln!(f, "    Output")?;
@@ -424,9 +425,9 @@ impl Display for BaseOutput {
                 for item in std::str::from_utf8(buf).unwrap().lines() {
                     writeln!(f, "        {}", item)?;
                 }
-            },
+            }
         }
-        
+
         Ok(())
     }
 }
@@ -442,7 +443,6 @@ impl Write for BaseOutput {
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        
         match self {
             BaseOutput::File(out) => out.flush(),
             BaseOutput::Stdout => std::io::stdout().flush(),
@@ -509,11 +509,12 @@ impl Builder {
     }
 
     pub fn with_query(&mut self, file_name: &str, model_name: &str) -> &mut Builder {
-        self.query_file_names.push((file_name.to_string(), model_name.to_string()));
+        self.query_file_names
+            .push((file_name.to_string(), model_name.to_string()));
 
         self
     }
-    
+
     pub fn with_type(&mut self, name: &str, fully_qualified_type: &str) -> &mut Builder {
         self.types.insert(name.into(), fully_qualified_type.into());
 
@@ -531,13 +532,12 @@ impl Builder {
 
         self
     }
-    
+
     pub fn build(&mut self) -> Result<String, Error> {
         println!("cargo:rustc-check-cfg=cfg(graphql_generation_error)");
         let out_dir = if let Some(dir) = env::var_os("OUT_DIR") {
             dir
-        }
-        else {
+        } else {
             std::ffi::OsString::from("/tmp")
         };
         let dest_path = Path::new(&out_dir).join(format!("{}.rs", self.model_name));
@@ -546,35 +546,37 @@ impl Builder {
         let file = File::create(dest_path)?;
         let mut base_out: BaseOutput = if self.generate {
             BaseOutput::from_file(file)
-        }
-        else {
+        } else {
             BaseOutput::from_stdout()
         };
 
         let mut out = base_out.indent();
 
         if let Err(error) = self.do_build(&mut out) {
-            writeln!(out, "compile_error!(\"Fatal build error {}\");", error.to_string().replace("\"", "'"))?;
+            writeln!(
+                out,
+                "compile_error!(\"Fatal build error {}\");",
+                error.to_string().replace("\"", "'")
+            )?;
             println!("cargo-warning: {:?}", error);
             println!("cargo-error: {:?}", error);
             // panic!("Build failed {}", error);
             println!("cargo:rustc-cfg=graphql_generation_error");
         }
 
-
         Ok(dest_path_string)
     }
 
     fn do_build(&mut self, out: &mut Output<'_>) -> Result<(), Error> {
-
         if let Some(schema_file_name) = &self.schema_file_name {
             let schema_string = match fs::read_to_string(schema_file_name) {
                 Ok(str) => Ok(str),
-                Err(err) => {
-                    Err(Error::FileReadError { file_name: schema_file_name.clone(), reason: err })
-                },
+                Err(err) => Err(Error::FileReadError {
+                    file_name: schema_file_name.clone(),
+                    reason: err,
+                }),
             }?;
-                    
+
             // Tell Cargo that if the given file changes, to rerun this build script.
             println!("cargo::rerun-if-changed={}", schema_file_name);
 
@@ -585,39 +587,44 @@ impl Builder {
                 Ok(ast) => ast,
                 Err(parse_error) => {
                     return err.fail(BuildError::SchemaSyntaxError(parse_error.to_string()));
-                },
+                }
             };
             let mut registry = NameRegistry::new();
-    
+
             let parsed_schema = match parsed_model::Schema::new(&mut err, &mut registry, ast) {
                 Ok(result) => result,
                 Err(error) => {
                     base.report_errors();
                     return Err(error);
-                },
+                }
             };
 
             if self.print {
                 writeln!(out, "/* Parsed Schema *********************************************************************************************")?;
                 parsed_schema.print(out)?;
-                writeln!(out, " * *********************************************************************************************/")?;
+                writeln!(
+                    out,
+                    " * *********************************************************************************************/"
+                )?;
             }
 
-            let validated_schema = match validated_model::Schema::new(&mut err, &parsed_schema, &mut registry, &self.types) {
-                Ok(result) => result,
-                Err(error) => {
-                    base.report_errors();
-                    return Err(error);
-                },
-            };
-
+            let validated_schema =
+                match validated_model::Schema::new(&mut err, &parsed_schema, &mut registry, &self.types) {
+                    Ok(result) => result,
+                    Err(error) => {
+                        base.report_errors();
+                        return Err(error);
+                    }
+                };
 
             if self.print {
                 writeln!(out, "/* Validated Schema *********************************************************************************************")?;
                 validated_schema.print(out)?;
-                writeln!(out, " * *********************************************************************************************/")?;
+                writeln!(
+                    out,
+                    " * *********************************************************************************************/"
+                )?;
             }
-
 
             if self.print || self.generate {
                 base.report(out)?;
@@ -626,22 +633,22 @@ impl Builder {
             let mut documents = Vec::new();
             let mut selection_manager = NameSpaceManager::new();
 
-            for (query_file_name, query_model_name) in &self.query_file_names 
-            {
+            for (query_file_name, query_model_name) in &self.query_file_names {
                 // Tell Cargo that if the given file changes, to rerun this build script.
                 println!("cargo::rerun-if-changed={}", query_file_name);
 
                 let query_string = match fs::read_to_string(query_file_name) {
                     Ok(str) => Ok(str),
-                    Err(err) => {
-                        Err(Error::FileReadError { file_name: query_file_name.clone(), reason: err })
-                    },
+                    Err(err) => Err(Error::FileReadError {
+                        file_name: query_file_name.clone(),
+                        reason: err,
+                    }),
                 }?;
-                
+
                 selection_manager.create_document(registry.intern(to_snake_case(query_model_name)));
                 let mut base = BaseErrorCollector::new(query_file_name.clone());
                 let mut err = ErrorCollector::new(&mut base);
-                
+
                 let parse_result = parse_query::<String>(&query_string);
 
                 if self.print {
@@ -652,47 +659,59 @@ impl Builder {
 
                 match parse_result {
                     Ok(query_ast) => {
-                        let query_parsed_model = parsed_model::ExecutableDocument::new(&mut err, &mut registry, query_ast.definitions, query_model_name);
-                
+                        let query_parsed_model = parsed_model::ExecutableDocument::new(
+                            &mut err,
+                            &mut registry,
+                            query_ast.definitions,
+                            query_model_name,
+                        );
+
                         if self.print {
                             writeln!(out, "/* Parsed ExecutableDocument *********************************************************************************************")?;
                             query_parsed_model.print(out)?;
                             writeln!(out, " * *********************************************************************************************/")?;
                         }
-                
-                        match validated_model::ExecutableDocument::new(&mut err, &mut registry, &mut selection_manager, &query_parsed_model, &validated_schema) {
+
+                        match validated_model::ExecutableDocument::new(
+                            &mut err,
+                            &mut registry,
+                            &mut selection_manager,
+                            &query_parsed_model,
+                            &validated_schema,
+                        ) {
                             Ok(validated_executable) => {
-                            
                                 if self.print {
                                     writeln!(out, "/* Validated ExecutableDocument *********************************************************************************************")?;
                                     validated_executable.print(out)?;
                                     writeln!(out, " * *********************************************************************************************/")?;
                                 }
                                 documents.push(validated_executable);
-                            },
+                            }
                             Err(error) => {
                                 // println!("VALIDTION ERROR {:?}", error);
                                 // writeln!(out, "VALIDTION ERROR {:?}", error)?;
                                 err.error(BuildError::QuerySyntaxError(error.to_string()));
-                            },
+                            }
                         }
-                    },
+                    }
                     Err(parse_error) => {
                         err.error(BuildError::QuerySyntaxError(parse_error.to_string()));
-                    },
+                    }
                 };
-    
+
                 base.report(out)?;
             }
 
             if self.print {
                 writeln!(out, "/* Selection Manager *********************************************************************************************")?;
                 selection_manager.print(out)?;
-                writeln!(out, " * *********************************************************************************************/")?;
+                writeln!(
+                    out,
+                    " * *********************************************************************************************/"
+                )?;
             }
 
             if self.generate {
-
                 selection_manager.allocate_names(&mut registry);
                 // //propogate dependencies
 
@@ -711,42 +730,42 @@ impl Builder {
                 //     }
                 // }
 
-
-
-                writeln!(out, 
+                writeln!(
+                    out,
                     r#"
-// Generated by sparko_graphql
+// Generated by bruce-graphql
 
 #[allow(unused)]
 pub mod {} {{
 use display_json::DisplayAsJsonPretty;
 use serde::{{Deserialize, Serialize}};
-"#, to_snake_case(&self.model_name)
+"#,
+                    to_snake_case(&self.model_name)
                 )?;
 
                 for name in &selection_manager.all_schema_imports {
                     if let Some(object) = validated_schema.defined_types.get(name) {
                         object.generate(out)?;
-                    }
-                    else {
+                    } else {
                         println!("Failed to find {}", *name);
                     }
                 }
-                
+
                 for document in &documents {
                     selection_manager.set_document(document.parsed.name.clone());
                     document.generate(out, &validated_schema, &mut selection_manager)?;
                 }
 
-                writeln!(out, 
+                writeln!(
+                    out,
                     r#"
 }} // End model {}
-"#, to_snake_case(&self.model_name)
-                )?; 
+"#,
+                    to_snake_case(&self.model_name)
+                )?;
             }
-        }
-        else {
-            return Err(Error::BuildFailed(format!("No schema defined")));
+        } else {
+            return Err(Error::BuildFailed("No schema defined".to_string()));
         };
 
         Ok(())
@@ -765,25 +784,25 @@ mod tests {
             Err(_) => {
                 // let mut stderr = std::io::stderr();
                 // base.report(&mut stderr).unwrap();
-            },
+            }
         }
 
         base
     }
 
-    fn do_test_schema(schema_string: &str, mut err:  &mut ErrorCollector<'_>) -> Result<(), Error> {
+    fn do_test_schema(schema_string: &str, err: &mut ErrorCollector<'_>) -> Result<(), Error> {
         let types = IndexMap::new();
 
-         match parse_schema::<'_, String>(&schema_string) {
+        match parse_schema::<'_, String>(schema_string) {
             Ok(ast) => {
                 let mut registry = NameRegistry::new();
-                let parsed_schema = parsed_model::Schema::new(&mut err, &mut registry, ast)?;
+                let parsed_schema = parsed_model::Schema::new(err, &mut registry, ast)?;
 
-                validated_model::Schema::new(&mut err, &parsed_schema, &mut registry, &types)?;
-            },
+                validated_model::Schema::new(err, &parsed_schema, &mut registry, &types)?;
+            }
             Err(parse_error) => {
                 err.error(BuildError::SchemaSyntaxError(parse_error.to_string()));
-            },
+            }
         };
 
         Ok(())
@@ -798,38 +817,44 @@ mod tests {
             Err(_) => {
                 // let mut stderr = std::io::stderr();
                 // base.report(&mut stderr).unwrap();
-            },
+            }
         }
 
         base
     }
 
-    fn do_test_query(schema_string: &str, query: &str, mut err:  &mut ErrorCollector<'_>) -> Result<(), Error> {
+    fn do_test_query(schema_string: &str, query: &str, err: &mut ErrorCollector<'_>) -> Result<(), Error> {
         let types = IndexMap::new();
-        
 
-        match parse_schema::<'_, String>(&schema_string) {
+        match parse_schema::<'_, String>(schema_string) {
             Ok(ast) => {
                 let mut registry = NameRegistry::new();
-                let parsed_schema = parsed_model::Schema::new(&mut err, &mut registry, ast)?;
-                let validated_schema = validated_model::Schema::new(&mut err, &parsed_schema, &mut registry, &types)?;
+                let parsed_schema = parsed_model::Schema::new(err, &mut registry, ast)?;
+                let validated_schema = validated_model::Schema::new(err, &parsed_schema, &mut registry, &types)?;
                 let mut selection_manager = NameSpaceManager::new();
                 selection_manager.create_document(registry.intern_str("query_model_name"));
-                match parse_query::<String>(&query) {
+                match parse_query::<String>(query) {
                     Ok(ast) => {
-                        let parsed_model = parsed_model::ExecutableDocument::new(&mut err, &mut registry, ast.definitions, "test");
-                        validated_model::ExecutableDocument::new(&mut err, &mut registry, &mut selection_manager, &parsed_model, &validated_schema)?;
-                    },
+                        let parsed_model =
+                            parsed_model::ExecutableDocument::new(err, &mut registry, ast.definitions, "test");
+                        validated_model::ExecutableDocument::new(
+                            err,
+                            &mut registry,
+                            &mut selection_manager,
+                            &parsed_model,
+                            &validated_schema,
+                        )?;
+                    }
                     Err(parse_error) => {
                         // let msg = format!("Query syntax error: {}", parse_error);
                         err.error(BuildError::QuerySyntaxError(parse_error.to_string()));
                         // return Err(Error::BuildFailed(msg))
-                    },
+                    }
                 };
-            },
+            }
             Err(parse_error) => {
                 err.error(BuildError::SchemaSyntaxError(parse_error.to_string()));
-            },
+            }
         };
 
         Ok(())
@@ -837,12 +862,14 @@ mod tests {
 
     #[test]
     fn test_missing_interface() {
-        let out = test_schema(r#"
+        let out = test_schema(
+            r#"
 type Query implements Foo {
     name: String,
 }
-"#);
-                
+"#,
+        );
+
         if let Some(BuildError::MissingInterfaceError(..)) = out.expect_one_error() {
             return;
         }
@@ -852,21 +879,24 @@ type Query implements Foo {
 
     #[test]
     fn test_missing_query() {
-        let out = test_schema(r#"
+        let out = test_schema(
+            r#"
 type Object {
     name: String,
 }
-"#);
+"#,
+        );
         if let Some(BuildError::NoQueryDefinition) = out.expect_one_error() {
             return;
         }
-       out.report_errors();
+        out.report_errors();
         panic!("Expected NoQueryDefinition");
     }
 
     #[test]
     fn test_missing_mutation() {
-        let out = test_schema(r#"
+        let out = test_schema(
+            r#"
 schema {
     query: Object,
     mutation: Missing
@@ -874,17 +904,19 @@ schema {
 type Object {
     name: String,
 }
-"#);
+"#,
+        );
         if let Some(BuildError::MissingObjectError(..)) = out.expect_one_error() {
             return;
         }
-       out.report_errors();
+        out.report_errors();
         panic!("Expected MissingObjectError");
     }
 
     #[test]
     fn test_missing_subscription() {
-        let out = test_schema(r#"
+        let out = test_schema(
+            r#"
 schema {
     query: Object,
     subscription: Missing
@@ -892,15 +924,16 @@ schema {
 type Object {
     name: String,
 }
-"#);
+"#,
+        );
         if let Some(BuildError::MissingObjectError(..)) = out.expect_one_error() {
             return;
         }
-       out.report_errors();
+        out.report_errors();
         panic!("Expected MissingObjectError");
     }
 
-    const PERSON_SCHEMA: &'static str = r#"
+    const PERSON_SCHEMA: &str = r#"
 type Query {
     person: Person
 }
@@ -912,47 +945,51 @@ type Person {
 
     #[test]
     fn test_simple_query() {
-        let out = test_query(PERSON_SCHEMA, 
-r#"query GetPerson {
+        let out = test_query(
+            PERSON_SCHEMA,
+            r#"query GetPerson {
   person {
     name
   }
-}"#);
+}"#,
+        );
         out.expect_ok();
     }
 
     #[test]
     fn test_missing_attribute() {
-        let out = test_query(PERSON_SCHEMA, 
-r#"query GetPerson {
+        let out = test_query(
+            PERSON_SCHEMA,
+            r#"query GetPerson {
   xperson {
     name
     dateOfBirth
   }
-}"#);
-        
-        
+}"#,
+        );
+
         if let Some(BuildError::MissingFieldError(..)) = out.expect_one_error() {
             return;
         }
-       out.report_errors();
+        out.report_errors();
         panic!("Expected MissingFieldError");
     }
 
     #[test]
     fn test_missing_attribute2() {
-        let out = test_query(PERSON_SCHEMA, 
-r#"query GetPerson {
+        let out = test_query(
+            PERSON_SCHEMA,
+            r#"query GetPerson {
   person {
     xname
   }
-}"#);
-        
-        
+}"#,
+        );
+
         if let Some(BuildError::MissingFieldError(..)) = out.expect_one_error() {
             return;
         }
-       out.report_errors();
+        out.report_errors();
         panic!("Expected MissingFieldError");
     }
 
@@ -971,94 +1008,88 @@ type Price {
 
     #[test]
     fn test_currency() {
-        let out = test_query(CURRENCY_SCHEMA, 
-r#"query GetPrice {
+        let out = test_query(
+            CURRENCY_SCHEMA,
+            r#"query GetPrice {
   price {
     amount
-    currency @ms_currency
+    currency @bruce_currency
   }
-}"#);
+}"#,
+        );
         out.expect_ok();
     }
 
     #[test]
     fn test_currency_non_string() {
-        let out = test_query(CURRENCY_SCHEMA, 
-r#"query GetPrice {
+        let out = test_query(
+            CURRENCY_SCHEMA,
+            r#"query GetPrice {
   price {
-    amount @ms_currency
+    amount @bruce_currency
     currency
   }
-}"#);
-        
+}"#,
+        );
+
         if let Some(BuildError::TypeMismatchError(..)) = out.expect_one_error() {
             return;
         }
-       out.report_errors();
+        out.report_errors();
         panic!("Expected TypeMismatchError");
     }
 
+    //     #[test]
+    //     fn test_overlapping_interface() {
+    //         match test_schema(r#"
+    // interface Foo {
+    //     name: String,
+    // }
 
+    // interface Bar {
+    //     name: String,
+    // }
 
+    // type Object implements Foo & Bar {
+    //     name: String,
+    // }
+    // "#) {
+    //             Ok(out)  => {
+    //                out.report_test();
+    //                 if let GraphQLError::OverlappingInterfaceError(..) = out.expect_one_warning() {
+    //                     return;
+    //                 }
+    //             },
+    //             Err(error) => {
+    //                 println!("{}", error);
+    //             },
+    //         }
 
+    //     panic!("Expected OverlappingInterfaceError");
+    //     }
 
+    //     #[test]
+    //     fn test_incompatible_interface() {
+    //         match test_schema(r#"
+    // interface Foo {
+    //     name: Int,
+    // }
 
+    // type Object implements Foo {
+    //     name: String,
+    // }
+    // "#) {
+    //             Ok(out)  => {
+    //                out.report_test();
+    //                 if let GraphQLError::IncompatibleInterfaceError(..) = out.expect_one_error() {
+    //                     return;
+    //                 }
+    //             },
+    //             Err(error) => {
+    //                 println!("{}", error);
+    //             },
+    //         }
 
-
-
-
-
-//     #[test]
-//     fn test_overlapping_interface() {
-//         match test_schema(r#"
-// interface Foo {
-//     name: String,
-// }
-
-// interface Bar {
-//     name: String,
-// }
-
-// type Object implements Foo & Bar {
-//     name: String,
-// }
-// "#) {
-//             Ok(out)  => {
-//                out.report_test();
-//                 if let GraphQLError::OverlappingInterfaceError(..) = out.expect_one_warning() {
-//                     return;
-//                 }
-//             },
-//             Err(error) => {
-//                 println!("{}", error);
-//             },
-//         }
-    
-//     panic!("Expected OverlappingInterfaceError");
-//     }
-
-//     #[test]
-//     fn test_incompatible_interface() {
-//         match test_schema(r#"
-// interface Foo {
-//     name: Int,
-// }
-
-// type Object implements Foo {
-//     name: String,
-// }
-// "#) {
-//             Ok(out)  => {
-//                out.report_test();
-//                 if let GraphQLError::IncompatibleInterfaceError(..) = out.expect_one_error() {
-//                     return;
-//                 }
-//             },
-//             Err(error) => {
-//                 println!("{}", error);
-//             },
-//         }
-    
-//     panic!("Expected IncompatibleInterfaceError");
-//     }
+    //     panic!("Expected IncompatibleInterfaceError");
+    //     }
 }

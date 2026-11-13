@@ -1,0 +1,18 @@
+[package]
+name = "bruce-graphql-builder"
+version = "0.5.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Bruce's GraphQL CodeGen: generates typed Rust from a GraphQL schema and queries, in a build script, for bruce-graphql"
+repository = "https://github.com/bruceskingle/bruce-graphql"
+readme = "../README.md"
+keywords = ["graphql", "codegen", "build"]
+categories = ["development-tools::build-utils"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+graphql-parser = "0.4.1"
+#graphql-parser = { path = "../../graphql-parser" }
+indexmap = "2.7.0"
+inflections = "1.1.1"

@@ -5,14 +5,14 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct ForwardPageInfo {
     pub end_cursor: Option<String>,
-    pub has_next_page: bool
+    pub has_next_page: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ReversePageInfo {
     pub start_cursor: Option<String>,
-    pub has_previous_page: bool
+    pub has_previous_page: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty, Clone)]
@@ -21,7 +21,7 @@ pub struct PageInfo {
     pub start_cursor: Option<String>,
     pub has_next_page: bool,
     pub end_cursor: Option<String>,
-    pub has_previous_page: bool
+    pub has_previous_page: bool,
 }
 
 // #[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty)]
@@ -40,32 +40,36 @@ pub struct PageInfo {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct ForwardPageOf<T> 
-{
+pub struct ForwardPageOf<T> {
     pub page_info: ForwardPageInfo,
-    pub edges: Vec<EdgeOf<T>>
+    pub edges: Vec<EdgeOf<T>>,
 }
 
 impl<T> ForwardPageOf<T> {
-  pub fn len(&self) -> usize {
-    self.edges.len()
-  }
+    pub fn len(&self) -> usize {
+        self.edges.len()
+    }
+
+    /// Whether the page has no edges.
+    pub fn is_empty(&self) -> bool {
+        self.edges.is_empty()
+    }
 }
 
-  impl<T> IntoIterator for ForwardPageOf<T> {
+impl<T> IntoIterator for ForwardPageOf<T> {
     type Item = T;
 
     type IntoIter = ForwardPageOfIterator<T>;
 
     fn into_iter(self) -> Self::IntoIter {
         ForwardPageOfIterator {
-          iter: self.edges.into_iter(),
+            iter: self.edges.into_iter(),
         }
     }
 }
 
 pub struct ForwardPageOfIterator<T> {
-  iter: std::vec::IntoIter<EdgeOf<T>>
+    iter: std::vec::IntoIter<EdgeOf<T>>,
 }
 
 impl<T> Iterator for ForwardPageOfIterator<T> {
@@ -77,42 +81,46 @@ impl<T> Iterator for ForwardPageOfIterator<T> {
 }
 
 impl<'a, T> IntoIterator for &'a ForwardPageOf<T> {
-  type Item = &'a T;
+    type Item = &'a T;
 
-  type IntoIter = RefForwardPageOfIterator<'a, T>;
+    type IntoIter = RefForwardPageOfIterator<'a, T>;
 
-  fn into_iter(self) -> Self::IntoIter {
-    // let iter: std::slice::Iter<'a, EdgeOf<T>> = self.edges.iter();
-      RefForwardPageOfIterator {
-        iter: self.edges.iter(),
-      }
-  }
+    fn into_iter(self) -> Self::IntoIter {
+        // let iter: std::slice::Iter<'a, EdgeOf<T>> = self.edges.iter();
+        RefForwardPageOfIterator {
+            iter: self.edges.iter(),
+        }
+    }
 }
 
 pub struct RefForwardPageOfIterator<'a, T> {
-  iter: std::slice::Iter<'a, EdgeOf<T>>
+    iter: std::slice::Iter<'a, EdgeOf<T>>,
 }
 
 impl<'a, T> Iterator for RefForwardPageOfIterator<'a, T> {
-  type Item = &'a T;
+    type Item = &'a T;
 
-  fn next(&mut self) -> Option<Self::Item> {
-      self.iter.next().map(|e| &e.node)
-  }
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().map(|e| &e.node)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct ReversePageOf<T> 
-{
+pub struct ReversePageOf<T> {
     pub page_info: ReversePageInfo,
-    pub edges: Vec<EdgeOf<T>>
+    pub edges: Vec<EdgeOf<T>>,
 }
 
 impl<T> ReversePageOf<T> {
-  pub fn len(&self) -> usize {
-    self.edges.len()
-  }
+    pub fn len(&self) -> usize {
+        self.edges.len()
+    }
+
+    /// Whether the page has no edges.
+    pub fn is_empty(&self) -> bool {
+        self.edges.is_empty()
+    }
 }
 
 impl<T> IntoIterator for ReversePageOf<T> {
@@ -122,13 +130,13 @@ impl<T> IntoIterator for ReversePageOf<T> {
 
     fn into_iter(self) -> Self::IntoIter {
         ReversePageOfIterator {
-          iter: self.edges.into_iter(),
+            iter: self.edges.into_iter(),
         }
     }
 }
 
 pub struct ReversePageOfIterator<T> {
-  iter: std::vec::IntoIter<EdgeOf<T>>
+    iter: std::vec::IntoIter<EdgeOf<T>>,
 }
 
 impl<T> Iterator for ReversePageOfIterator<T> {
@@ -140,42 +148,46 @@ impl<T> Iterator for ReversePageOfIterator<T> {
 }
 
 impl<'a, T> IntoIterator for &'a ReversePageOf<T> {
-  type Item = &'a T;
+    type Item = &'a T;
 
-  type IntoIter = RefReversePageOfIterator<'a, T>;
+    type IntoIter = RefReversePageOfIterator<'a, T>;
 
-  fn into_iter(self) -> Self::IntoIter {
-    // let iter: std::slice::Iter<'a, EdgeOf<T>> = self.edges.iter();
-      RefReversePageOfIterator {
-        iter: self.edges.iter(),
-      }
-  }
+    fn into_iter(self) -> Self::IntoIter {
+        // let iter: std::slice::Iter<'a, EdgeOf<T>> = self.edges.iter();
+        RefReversePageOfIterator {
+            iter: self.edges.iter(),
+        }
+    }
 }
 
 pub struct RefReversePageOfIterator<'a, T> {
-  iter: std::slice::Iter<'a, EdgeOf<T>>
+    iter: std::slice::Iter<'a, EdgeOf<T>>,
 }
 
 impl<'a, T> Iterator for RefReversePageOfIterator<'a, T> {
-  type Item = &'a T;
+    type Item = &'a T;
 
-  fn next(&mut self) -> Option<Self::Item> {
-      self.iter.next().map(|e| &e.node)
-  }
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().map(|e| &e.node)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct PageOf<T> 
-{
+pub struct PageOf<T> {
     pub page_info: PageInfo,
-    pub edges: Vec<EdgeOf<T>>
+    pub edges: Vec<EdgeOf<T>>,
 }
 
 impl<T> PageOf<T> {
-  pub fn len(&self) -> usize {
-    self.edges.len()
-  }
+    pub fn len(&self) -> usize {
+        self.edges.len()
+    }
+
+    /// Whether the page has no edges.
+    pub fn is_empty(&self) -> bool {
+        self.edges.is_empty()
+    }
 }
 
 impl<T> IntoIterator for PageOf<T> {
@@ -185,13 +197,13 @@ impl<T> IntoIterator for PageOf<T> {
 
     fn into_iter(self) -> Self::IntoIter {
         PageOfIterator {
-          iter: self.edges.into_iter(),
+            iter: self.edges.into_iter(),
         }
     }
 }
 
 pub struct PageOfIterator<T> {
-  iter: std::vec::IntoIter<EdgeOf<T>>
+    iter: std::vec::IntoIter<EdgeOf<T>>,
 }
 
 impl<T> Iterator for PageOfIterator<T> {
@@ -203,39 +215,36 @@ impl<T> Iterator for PageOfIterator<T> {
 }
 
 impl<'a, T> IntoIterator for &'a PageOf<T> {
-  type Item = &'a T;
+    type Item = &'a T;
 
-  type IntoIter = RefPageOfIterator<'a, T>;
+    type IntoIter = RefPageOfIterator<'a, T>;
 
-  fn into_iter(self) -> Self::IntoIter {
-    // let iter: std::slice::Iter<'a, EdgeOf<T>> = self.edges.iter();
-      RefPageOfIterator {
-        iter: self.edges.iter(),
-      }
-  }
+    fn into_iter(self) -> Self::IntoIter {
+        // let iter: std::slice::Iter<'a, EdgeOf<T>> = self.edges.iter();
+        RefPageOfIterator {
+            iter: self.edges.iter(),
+        }
+    }
 }
 
 pub struct RefPageOfIterator<'a, T> {
-  iter: std::slice::Iter<'a, EdgeOf<T>>
+    iter: std::slice::Iter<'a, EdgeOf<T>>,
 }
 
 impl<'a, T> Iterator for RefPageOfIterator<'a, T> {
-  type Item = &'a T;
+    type Item = &'a T;
 
-  fn next(&mut self) -> Option<Self::Item> {
-      self.iter.next().map(|e| &e.node)
-  }
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().map(|e| &e.node)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct  EdgeOf<T>
-{
-  pub node: T,
-  pub cursor: String
+pub struct EdgeOf<T> {
+    pub node: T,
+    pub cursor: String,
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -244,21 +253,34 @@ mod tests {
     #[test]
     fn test_iter() {
         let page = PageOf {
-          page_info: PageInfo {
-              start_cursor: Some(String::from("back")),
-              has_next_page: false,
-              end_cursor: Some(String::from("forward")),
-              has_previous_page: false,
-          },
-          edges: vec!(EdgeOf { node: 1, cursor: "1".to_string()}, EdgeOf { node: 2, cursor: "2".to_string()}, EdgeOf { node: 3, cursor: "3".to_string()})
+            page_info: PageInfo {
+                start_cursor: Some(String::from("back")),
+                has_next_page: false,
+                end_cursor: Some(String::from("forward")),
+                has_previous_page: false,
+            },
+            edges: vec![
+                EdgeOf {
+                    node: 1,
+                    cursor: "1".to_string(),
+                },
+                EdgeOf {
+                    node: 2,
+                    cursor: "2".to_string(),
+                },
+                EdgeOf {
+                    node: 3,
+                    cursor: "3".to_string(),
+                },
+            ],
         };
 
         for i in &page {
-          println!("i={}", i);
+            println!("i={}", i);
         }
 
         for i in page {
-          println!("i2={}", i);
+            println!("i2={}", i);
         }
 
         // panic!("test")

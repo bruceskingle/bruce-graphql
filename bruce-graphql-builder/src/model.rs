@@ -725,6 +725,7 @@ impl ExecutableDocument {
     }
     
     pub fn generate(&mut self, out: &mut Output, schema: &Schema) -> Result<(), Error> {
+        writeln!(out, "#[allow(clippy::module_inception)]")?;
         writeln!(out, "pub mod {} {{", self.name)?;
 
         {

@@ -1,6 +1,5 @@
 use std::error::Error;
-// use sparko_graphql::{NewGraphQLQuery, NewGraphQLResponse, RequestManager};
-
+// use bruce_graphql::{NewGraphQLQuery, NewGraphQLResponse, RequestManager};
 
 include!(concat!(env!("OUT_DIR"), "/example.rs"));
 
@@ -28,29 +27,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("Hello, world");
 
     // let the_request_manager: RequestManager = RequestManager::new("https://swapi-graphql.eskerda.vercel.app/".to_string(), true)?;
-    // let request_manager: Option<&RequestManager> = 
+    // let request_manager: Option<&RequestManager> =
     //     Some(&the_request_manager);
     //     // None;
 
-
-    let query = example::get_example::get_luke::Query::new();
-
-    
+    let _query = example::get_example::get_luke::Query::new();
 
     // test(&query, request_manager).await?;
-
-    
 
     // let query = swapi::strikes::get_two_films::Query::new();
 
     // test(&query, request_manager).await?;
 
-
     // let query = swapi::person::get_person::Query::new("cGVvcGxlOjE=".to_string());
 
     // test(&query, request_manager).await?;
-
-    
 
     // if let Some(request_manager) = request_manager {
     //     {

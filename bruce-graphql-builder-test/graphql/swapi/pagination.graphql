@@ -1,5 +1,5 @@
 
-query getFimPeople @ms_required_by_default {
+query getFimPeople @bruce_required_by_default {
   	allFilms(first: 5) {
     	edges {
         cursor
@@ -25,7 +25,7 @@ query getFimPeople @ms_required_by_default {
 
 
 
-query getPagableFimPeople @ms_required_by_default {
+query getPagableFimPeople @bruce_required_by_default {
     allFilms(first: 5) {
         pageInfo {
             endCursor

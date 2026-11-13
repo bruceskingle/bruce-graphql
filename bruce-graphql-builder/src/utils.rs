@@ -6,7 +6,7 @@ pub fn to_pascal_case(s: &str) -> String {
         Before,
         FirstUpper,
         Upper(char),
-        Lower
+        Lower,
     }
 
     let mut phase = Phase::Leadin;
@@ -14,75 +14,66 @@ pub fn to_pascal_case(s: &str) -> String {
     let mut push = |char| string.push(char);
 
     for char in s.chars() {
-        
-
         match phase {
             Phase::Leadin => {
                 if char == '_' {
                     underscores += 1;
-                }
-                else {
+                } else {
                     char.to_uppercase().for_each(&mut push);
                     phase = Phase::FirstUpper;
                 }
-            },
+            }
             Phase::Before => {
                 if char.is_alphanumeric() {
                     char.to_uppercase().for_each(&mut push);
                     phase = Phase::FirstUpper;
                 }
                 // else skip
-            },
+            }
             Phase::FirstUpper => {
                 if char.is_uppercase() {
                     phase = Phase::Upper(char);
-                }
-                else {
+                } else {
                     if char.is_alphanumeric() {
                         char.to_lowercase().for_each(&mut push);
                     }
                     phase = Phase::Lower;
                 }
-            },
+            }
             Phase::Upper(pending) => {
-
                 if char.is_uppercase() {
                     pending.to_lowercase().for_each(&mut push);
                     phase = Phase::Upper(char);
-                }
-                else {
+                } else {
                     if char.is_alphanumeric() {
                         pending.to_uppercase().for_each(&mut push);
                         char.to_lowercase().for_each(&mut push);
                         phase = Phase::Lower;
-                    }
-                    else {
+                    } else {
                         pending.to_lowercase().for_each(&mut push);
                         phase = Phase::Before;
                     }
                 }
-            },
+            }
             Phase::Lower => {
                 if char.is_lowercase() {
                     push(char);
-                }
-                else {
+                } else {
                     if char.is_alphanumeric() {
                         char.to_uppercase().for_each(&mut push);
                         phase = Phase::FirstUpper;
-                    }
-                    else {
+                    } else {
                         phase = Phase::Before;
                     }
                 }
-            },
+            }
         }
     }
 
     match phase {
         Phase::Leadin => string = format!("underscore{}", underscores),
         Phase::Upper(pending) => pending.to_lowercase().for_each(&mut push),
-        _ => {},
+        _ => {}
     }
 
     string
@@ -121,7 +112,6 @@ pub fn to_pascal_case(s: &str) -> String {
 //     }
 
 // }
-
 
 // struct IndentedWriter<'a> {
 //     base: &'a mut Vec<u8>,
@@ -179,14 +169,12 @@ pub fn to_pascal_case(s: &str) -> String {
 //     }
 // }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_pascal_case() {
-
         assert_eq!(to_pascal_case("HTTPServer"), "HttpServer");
         assert_eq!(to_pascal_case("HTTP"), "Http");
         assert_eq!(to_pascal_case("être"), "Être");
