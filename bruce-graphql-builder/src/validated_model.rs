@@ -177,8 +177,6 @@ impl Selection {
 
         match &self.implemented_by {
             None => {
-                writeln!(out, "/* No variants */")?;
-
                 writeln!(
                     out,
                     "#[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty, Clone)]"
@@ -205,8 +203,6 @@ impl Selection {
             }
             Some(implemented_by) => {
                 if self.variants.len() < 2 && implemented_by.len() < 2 {
-                    writeln!(out, "/* <2 variant */")?;
-
                     writeln!(
                         out,
                         "#[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty, Clone)]"
@@ -230,13 +226,6 @@ impl Selection {
                     writeln!(out, "}}")?;
                     writeln!(out)?;
                 } else {
-                    writeln!(
-                        out,
-                        "/* {} variants {} implementors */",
-                        self.variants.len(),
-                        implemented_by.len()
-                    )?;
-
                     let abstract_name = Rc::new(format!("Abstract{}", name));
                     let base_type_name = to_pascal_case(name);
                     let base_member_name = to_snake_case(name);
@@ -248,12 +237,9 @@ impl Selection {
                     writeln!(out, "pub enum {} {{", base_type_name)?;
 
                     let mut variant_map = IndexMap::new();
-                    writeln!(out, "/* variants")?;
                     for variant in &self.variants {
-                        writeln!(out, "{} {:?}", &variant.type_condition, &variant)?;
                         variant_map.insert(&variant.type_condition, variant);
                     }
-                    writeln!(out, "*/")?;
 
                     for implementor in implemented_by {
                         let enum_variant_name = to_pascal_case(implementor);
@@ -342,7 +328,6 @@ impl Selection {
                         let variant_name = namespace_manager.get_name(&variant.index);
                         let rust_variant_name = to_pascal_case(variant_name);
 
-                        writeln!(out, "// Variant names {:?}", variant.name)?;
                         writeln!(
                             out,
                             "#[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty, Clone)]"
@@ -525,12 +510,6 @@ impl SelectionBuilder {
         //     let (a,b) = self.variants.values().next().unwrap();
         //     b.keys()
         // };
-
-        println!("BRUCE1: {}", self.graphql_type_name);
-
-        if &*self.graphql_type_name == "MeasurementEdge" {
-            println!("BRUCE2");
-        }
 
         let mut meta_map = Vec::new();
 
@@ -936,7 +915,7 @@ impl SelectionField {
             // }
             writeln!(
                 out,
-                "pub {}_: {}, // T1",
+                "pub {}_: {},",
                 field_name,
                 self.selection_type
                     .rust_type(selection_manager, schema, self.force_nonnull, false)
@@ -3005,19 +2984,11 @@ use bruce_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
                 }
             }
 
-            writeln!(out, "// Start dependencies")?;
-            for (name, id) in &selection_manager.get_context().names {
-                let selection = selection_manager.get(*id);
-                writeln!(
-                    out,
-                    "// generate name={} id={}, selection.name={}",
-                    name,
-                    id,
-                    selection.name()
-                )?;
-                selection.generate(&mut out, selection_manager, schema)?;
+            for id in selection_manager.get_context().names.values() {
+                selection_manager
+                    .get(*id)
+                    .generate(&mut out, selection_manager, schema)?;
             }
-            writeln!(out, "// End dependencies")?;
 
             if !self.variables.is_empty() {
                 writeln!(out, "#[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty)]")?;
@@ -3211,8 +3182,8 @@ use bruce_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
 
                 for field in self.variables.values() {
                     writeln!(
-                        out,
-                        "/* Bruce 1 */    {}_: {},",
+                        out.indent(),
+                        "{}_: {},",
                         to_snake_case(&field.parsed.name),
                         field.ty.rust_type(Optionality::Optional)
                     )?;
@@ -3246,7 +3217,6 @@ use bruce_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
                 writeln!(out, "}}")?;
                 writeln!(out)?;
 
-                writeln!(out, "//Site 1")?;
                 writeln!(
                     out,
                     "impl GraphQLQueryBuilder<{}, Response> for {}Builder {{",
@@ -3396,9 +3366,6 @@ use bruce_graphql::{{GraphQLResponse, GraphQLQuery, GraphQLQueryBuilder}};
         implemented_by: &Option<Vec<Name>>,
         schema: &Rc<Schema>,
     ) -> Result<Vec<Name>, Error> {
-        if name.as_str() == "meterFields" {
-            println!("HERE");
-        }
         if let Some(condition_type) = schema.defined_types.get(type_condition) {
             match condition_type {
                 TypeDefinition::Object(_) => Ok(vec![type_condition.clone()]),
@@ -3760,9 +3727,6 @@ impl NameSpaceManager {
         p_variants: IndexMap<Name, (Name, IndexMap<Name, SelectionField>)>,
         implemented_by: Option<Vec<Name>>,
     ) -> usize {
-        if "Node" == graphql_type_name.as_str() {
-            println!("HERE {}", graphql_type_name);
-        }
         println!("insert {} {:?}", self.items.len(), &name);
 
         let mut variants: Vec<Rc<Variant>> = Vec::new();
@@ -4014,10 +3978,6 @@ impl ExecutableDocument {
         writeln!(out, "pub mod {} {{", self.parsed.name)?;
         {
             let mut out = out.indent();
-
-            writeln!(out, "// Start dependencies")?;
-            // we dont have document level context yet
-            writeln!(out, "// End dependencies")?;
 
             for query in &self.operations {
                 selection_manager.set_operation(query.parsed.name.clone());

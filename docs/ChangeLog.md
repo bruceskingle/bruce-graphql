@@ -17,4 +17,5 @@ The first release on crates.io. Earlier versions, released on GitHub only, were 
 
 - The generated code has no clippy warnings, e.g. `is_none()` rather than `if let None`, so that an app which
   includes it can be checked with clippy.
+- The generated code has no debugging comments left in it, and the builder prints less while it runs.
 - `PageOf`, `ForwardPageOf` and `ReversePageOf` have `is_empty`, beside `len`.

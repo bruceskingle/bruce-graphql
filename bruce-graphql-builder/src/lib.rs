@@ -259,7 +259,7 @@ impl BaseErrorCollector {
 
     fn report(&self, f: &mut dyn Write) -> std::io::Result<()> {
         if self.errors.is_empty() {
-            writeln!(f, "//{} built OK", self.file_name)?;
+            writeln!(f, "// {} built OK", self.file_name)?;
         } else {
             // writeln!(f, "compile_warning!(\"{} built with Errors\");", self.file_name)?;
             println!("cargo:rustc-cfg=graphql_generation_error");
