@@ -15,7 +15,7 @@ use time::OffsetDateTime;
 use time_tz::{OffsetDateTimeExt, Tz};
 
 static FORMAT: Lazy<Vec<format_description::FormatItem>> =
-    Lazy::new(|| format_description::parse("[year]-[month]-[day]").unwrap());
+    Lazy::new(|| format_description::parse_borrowed::<1>("[year]-[month]-[day]").unwrap());
 
 /// A GraphQL Date value
 #[derive(Clone, Copy, Debug)]
@@ -110,7 +110,7 @@ impl FromStr for Date {
 
     fn from_str(str: &str) -> Result<Date, Self::Err> {
         Ok(Date(time::Date::parse(
-            str, //&format_description::parse("[month]-[day]").unwrap()
+            str, //&format_description::parse_borrowed::<1>("[month]-[day]").unwrap()
             &FORMAT,
         )?))
     }

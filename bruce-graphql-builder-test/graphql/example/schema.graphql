@@ -181,3 +181,12 @@ type ElectricityMeter implements Meter {
   serialNumber: String!
   mpan: String
 }
+
+# A third kind of meter, so that the enum generated for Meter has three variants sharing the suffix Meter, as an
+# interface's types often share a prefix or suffix, which clippy's enum_variant_names lint asks to be removed once there
+# are three; the builder allows it, as the variants must be named as the types.
+type WaterMeter implements Meter {
+  id: ID!
+  serialNumber: String!
+  supplyPointId: String
+}
