@@ -234,6 +234,8 @@ impl Selection {
                         "#[derive(Serialize, Deserialize, Debug, DisplayAsJsonPretty, Clone)]"
                     )?;
                     writeln!(out, "#[serde(tag = \"{}\")]", TYPE_NAME)?;
+                    // The variants are named after the schema's types, which often share a prefix or suffix.
+                    writeln!(out, "#[allow(clippy::enum_variant_names)]")?;
                     writeln!(out, "pub enum {} {{", base_type_name)?;
 
                     let mut variant_map = IndexMap::new();
@@ -1777,6 +1779,8 @@ impl Enum {
         if self.parsed.name != self.rust_name {
             writeln!(out, "#[serde(rename = \"{}\")]", self.parsed.name)?;
         }
+        // The variants are named after the schema's enum values, which often share a prefix or suffix.
+        writeln!(out, "#[allow(clippy::enum_variant_names)]")?;
         writeln!(out, "pub enum {} {{", &self.rust_name)?;
 
         for variant in &self.parsed.variants {

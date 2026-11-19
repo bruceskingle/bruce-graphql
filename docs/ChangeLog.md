@@ -1,5 +1,14 @@
 # ChangeLog
 
+# Release 0.6.0
+
+## Fixed
+
+- The generated code has no clippy warnings when an app includes it in a private module, as clippy then checks it
+  more strictly: an enum made from an interface or union, whose variants are named after the schema's types, e.g.
+  `StandardTariff` and `DayNightTariff`, or an enum whose values share a prefix or suffix, no longer fails
+  `enum_variant_names`.
+
 # Release 0.5.0
 
 The first release on crates.io. Earlier versions, released on GitHub only, were called `sparko_graphql` and
